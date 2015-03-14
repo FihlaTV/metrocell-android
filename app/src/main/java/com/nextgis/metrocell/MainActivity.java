@@ -12,32 +12,33 @@ import android.telephony.gsm.GsmCellLocation;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.FrameLayout;
+import android.widget.RelativeLayout;
 
-import org.osmdroid.ResourceProxy;
-import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase;
-import org.osmdroid.tileprovider.tilesource.XYTileSource;
-import org.osmdroid.util.GeoPoint;
-import org.osmdroid.util.ResourceProxyImpl;
-import org.osmdroid.views.MapView;
-import org.osmdroid.views.overlay.ItemizedIconOverlay;
-import org.osmdroid.views.overlay.OverlayItem;
+import com.nextgis.maplib.api.IGISApplication;
+import com.nextgis.maplib.datasource.GeoPoint;
+import com.nextgis.maplib.util.GeoConstants;
+import com.nextgis.maplibui.MapViewOverlays;
 
 import java.io.File;
-import java.util.ArrayList;
 
 
 public class MainActivity extends ActionBarActivity {
-    private MapView mMapView;
-    private ItemizedIconOverlay<OverlayItem> mCurrentLocationOverlay;
-    private float mScaledDensity;
+    private MapViewOverlays mMapView;
+    CurrentCellLocationOverlay mCurrentCellLocationOverlay;
+//    private float mScaledDensity;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mMapView = (MapView) findViewById(R.id.map_view);
-        mScaledDensity = getResources().getDisplayMetrics().scaledDensity;
+        mMapView = new MapViewOverlays(this, ((GISApplication) getApplication()).getMap());
+
+        ((FrameLayout) findViewById(R.id.map_view)).addView(mMapView, 0, new FrameLayout.LayoutParams(
+                RelativeLayout.LayoutParams.MATCH_PARENT,
+                RelativeLayout.LayoutParams.MATCH_PARENT));
+//        mScaledDensity = getResources().getDisplayMetrics().scaledDensity;
 
         initializeMap();
 
@@ -62,45 +63,22 @@ public class MainActivity extends ActionBarActivity {
             double currentLongitude = data.getDouble(0);
             double currentLatitude = data.getDouble(1);
 
-            OverlayItem currentLocation = new OverlayItem("1", "Current location", "Description",
-                    new GeoPoint(currentLatitude, currentLongitude));
-            currentLocation.setMarker(getResources().getDrawable(R.drawable.abc_ic_clear_mtrl_alpha));
-            currentLocation.setMarkerHotspot(OverlayItem.HotspotPlace.CENTER);
+            mCurrentCellLocationOverlay =
+                    new CurrentCellLocationOverlay(this, mMapView, new GeoPoint(currentLongitude, currentLatitude));
 
-            ArrayList<OverlayItem> list = new ArrayList<>();
-            list.add(currentLocation);
-            mCurrentLocationOverlay = new ItemizedIconOverlay<>(list, null, new ResourceProxyImpl(this));
-            mMapView.getOverlays().add(mCurrentLocationOverlay);
+            mMapView.addOverlay(mCurrentCellLocationOverlay);
         }
 
         data.close();
-//        dbHelper.close();
     }
 
     private void initializeMap() {
         setHardwareAccelerationOff();
 
-        // For bug https://github.com/osmdroid/osmdroid/issues/49
-        // "Tiles are too small on high dpi devices"
-        // It is from sources of TileSourceFactory
-        final int newScale = (int) (256 * mScaledDensity);
-        OnlineTileSourceBase mapSource = new XYTileSource(
-                "Mapnik",
-                ResourceProxy.string.mapnik,
-                0,
-                18,
-                newScale,
-                ".png",
-                new String[]{
-                        "http://a.tile.openstreetmap.org/",
-                        "http://b.tile.openstreetmap.org/",
-                        "http://c.tile.openstreetmap.org/"});
-        mMapView.setTileSource(mapSource);
-
-        mMapView.setMultiTouchControls(true);
-        mMapView.setBuiltInZoomControls(true);
-        mMapView.getController().setCenter(new GeoPoint(55.7522200, 37.6155600));
-        mMapView.getController().setZoom(9);
+        GeoPoint center = new GeoPoint(37.6155600, 55.7522200);
+        center.setCRS(GeoConstants.CRS_WGS84);
+        center.project(GeoConstants.CRS_WEB_MERCATOR);
+        mMapView.setZoomAndCenter(12, center);
     }
 
     @TargetApi(Build.VERSION_CODES.HONEYCOMB)
