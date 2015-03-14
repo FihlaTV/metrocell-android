@@ -4,6 +4,9 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.ColorFilter;
+import android.graphics.LightingColorFilter;
+import android.graphics.Paint;
 import android.graphics.PointF;
 
 import com.nextgis.maplib.datasource.GeoPoint;
@@ -18,9 +21,14 @@ public class CurrentCellLocationOverlay extends Overlay {
 
     public CurrentCellLocationOverlay(Context context, MapViewOverlays mapViewOverlays, GeoPoint initialPosition) {
         super(context, mapViewOverlays);
-        Bitmap marker = BitmapFactory.decodeResource(context.getResources(), R.drawable.ic_location);
-//        Canvas canvas = new Canvas(marker);
-//        canvas.
+
+        Bitmap marker = BitmapFactory.decodeResource(context.getResources(), R.drawable.ic_location).copy(Bitmap.Config.ARGB_8888, true);
+        Paint paint = new Paint();
+        ColorFilter filter = new LightingColorFilter(context.getResources().getColor(R.color.accent), 1);
+        paint.setColorFilter(filter);
+        Canvas canvas = new Canvas(marker);
+        canvas.drawBitmap(marker, 0, 0, paint);
+
         mLat = initialPosition.getY();
         mLong = initialPosition.getX();
         mMarker = new OverlayItem(mapViewOverlays.getMap(), initialPosition, marker);
