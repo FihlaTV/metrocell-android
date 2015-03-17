@@ -15,12 +15,17 @@ import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.RelativeLayout;
 
-import com.nextgis.maplib.api.IGISApplication;
+import com.nextgis.maplib.datasource.GeoEnvelope;
 import com.nextgis.maplib.datasource.GeoPoint;
+import com.nextgis.maplib.util.Constants;
 import com.nextgis.maplib.util.GeoConstants;
 import com.nextgis.maplibui.MapViewOverlays;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 
 public class MainActivity extends ActionBarActivity {
@@ -52,9 +57,9 @@ public class MainActivity extends ActionBarActivity {
         if (cellLocation == null)
             return;
 
-        File dbPath = new File(getExternalFilesDir(null), SQLiteDBHelper.DB_NAME + ".sqlite");
+        File dbPath = new File(getExternalFilesDir(null), SQLiteDBHelper.DB_NAME);
 
-        if (!dbPath.exists() || !dbPath.isFile())
+        if (!checkOrCreateDatabase(dbPath))
             return;
 
         SQLiteDatabase db = SQLiteDatabase.openDatabase(dbPath.getPath(), null, 0);
@@ -74,6 +79,33 @@ public class MainActivity extends ActionBarActivity {
         }
 
         data.close();
+        db.close();
+    }
+
+    private boolean checkOrCreateDatabase(File path) {
+        if (!path.exists() || !path.isFile()) {
+            try {
+                InputStream input = getAssets().open(SQLiteDBHelper.DB_NAME);
+                OutputStream output = new FileOutputStream(path);
+
+                byte[] buffer = new byte[1024];
+                int length;
+                while ((length = input.read(buffer)) > 0) {
+                    output.write(buffer, 0, length);
+                }
+
+                output.flush();
+                output.close();
+                input.close();
+
+                return true;
+            } catch (IOException e) {
+                e.printStackTrace();
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private void initializeMap() {
@@ -83,6 +115,8 @@ public class MainActivity extends ActionBarActivity {
         center.setCRS(GeoConstants.CRS_WGS84);
         center.project(GeoConstants.CRS_WEB_MERCATOR);
         mMapView.setZoomAndCenter(12, center);
+//        mMapView.getMap().setLimits(new GeoEnvelope(55.4843,55.8976,37.9193,37.2272), Constants.MAP_LIMITS_XY);
+//        mMapView.getMap().setLimits(new GeoEnvelope(56.1272,55.3041,36.8893,38.4109), Constants.MAP_LIMITS_XY);
     }
 
     @TargetApi(Build.VERSION_CODES.HONEYCOMB)
