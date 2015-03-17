@@ -18,6 +18,7 @@ import com.nextgis.maplibui.api.OverlayItem;
 public class CurrentCellLocationOverlay extends Overlay {
     OverlayItem mMarker;
     double mLat, mLong;
+    boolean mIsVisible = false;
 
     public CurrentCellLocationOverlay(Context context, MapViewOverlays mapViewOverlays, GeoPoint initialPosition) {
         super(context, mapViewOverlays);
@@ -34,19 +35,35 @@ public class CurrentCellLocationOverlay extends Overlay {
         mMarker = new OverlayItem(mapViewOverlays.getMap(), initialPosition, marker);
     }
 
+    public void setNewCellData(double longitude, double latitude) {
+        mLong = longitude;
+        mLat = latitude;
+        mMapViewOverlays.postInvalidate();
+    }
+
+    public void setVisibility(boolean visibility) {
+        mIsVisible = visibility;
+    }
+
     @Override
     public void draw(Canvas canvas, MapDrawable mapDrawable) {
-        mMarker.setCoordinates(mLong, mLat);
-        drawOverlayItem(canvas, mMarker);
+        if (mIsVisible) {
+            mMarker.setCoordinates(mLong, mLat);
+            drawOverlayItem(canvas, mMarker);
+        }
     }
 
     @Override
     public void drawOnPanning(Canvas canvas, PointF currentMouseOffset) {
-        drawOnPanning(canvas, currentMouseOffset, mMarker);
+        if (mIsVisible) {
+            drawOnPanning(canvas, currentMouseOffset, mMarker);
+        }
     }
 
     @Override
     public void drawOnZooming(Canvas canvas, PointF currentFocusLocation, float scale) {
-        drawOnZooming(canvas, currentFocusLocation, scale, mMarker, false);
+        if (mIsVisible) {
+            drawOnZooming(canvas, currentFocusLocation, scale, mMarker, false);
+        }
     }
 }

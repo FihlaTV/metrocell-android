@@ -7,6 +7,8 @@ import android.database.sqlite.SQLiteDatabase;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.v7.app.ActionBarActivity;
+import android.telephony.CellLocation;
+import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import android.telephony.gsm.GsmCellLocation;
 import android.view.Menu;
@@ -15,9 +17,7 @@ import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.RelativeLayout;
 
-import com.nextgis.maplib.datasource.GeoEnvelope;
 import com.nextgis.maplib.datasource.GeoPoint;
-import com.nextgis.maplib.util.Constants;
 import com.nextgis.maplib.util.GeoConstants;
 import com.nextgis.maplibui.MapViewOverlays;
 
@@ -31,6 +31,8 @@ import java.io.OutputStream;
 public class MainActivity extends ActionBarActivity {
     private MapViewOverlays mMapView;
     CurrentCellLocationOverlay mCurrentCellLocationOverlay;
+    TelephonyManager mTelephonyManager;
+    CellListener mCellListener;
 //    private float mScaledDensity;
 
     @Override
@@ -47,39 +49,11 @@ public class MainActivity extends ActionBarActivity {
 
         initializeMap();
 
-        TelephonyManager telephonyManager = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
+        mCurrentCellLocationOverlay = new CurrentCellLocationOverlay(this, mMapView, new GeoPoint(0, 0));
+        mMapView.addOverlay(mCurrentCellLocationOverlay);
 
-        if (telephonyManager.getPhoneType() != TelephonyManager.PHONE_TYPE_GSM)
-            return;
-
-        GsmCellLocation cellLocation = (GsmCellLocation) telephonyManager.getCellLocation();
-
-        if (cellLocation == null)
-            return;
-
-        File dbPath = new File(getExternalFilesDir(null), SQLiteDBHelper.DB_NAME);
-
-        if (!checkOrCreateDatabase(dbPath))
-            return;
-
-        SQLiteDatabase db = SQLiteDatabase.openDatabase(dbPath.getPath(), null, 0);
-
-        String selection = SQLiteDBHelper.ROW_CID + " = ? and " + SQLiteDBHelper.ROW_LAC + " = ?";
-        Cursor data = db.query(SQLiteDBHelper.TABLE_POINTS, new String[] {SQLiteDBHelper.ROW_LATITUDE, SQLiteDBHelper.ROW_LONGITUDE}, selection,
-                new String[] {String.valueOf(cellLocation.getCid()), String.valueOf(cellLocation.getLac())}, null, null, null);
-
-        if (data.moveToFirst()) {
-            double currentLongitude = data.getDouble(0);
-            double currentLatitude = data.getDouble(1);
-
-            mCurrentCellLocationOverlay =
-                    new CurrentCellLocationOverlay(this, mMapView, new GeoPoint(currentLongitude, currentLatitude));
-
-            mMapView.addOverlay(mCurrentCellLocationOverlay);
-        }
-
-        data.close();
-        db.close();
+        mTelephonyManager = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
+        mCellListener = new CellListener();
     }
 
     private boolean checkOrCreateDatabase(File path) {
@@ -127,6 +101,18 @@ public class MainActivity extends ActionBarActivity {
     }
 
     @Override
+    protected void onPause() {
+        mTelephonyManager.listen(mCellListener, PhoneStateListener.LISTEN_NONE);
+        super.onPause();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mTelephonyManager.listen(mCellListener, PhoneStateListener.LISTEN_CELL_LOCATION);
+    }
+
+    @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
@@ -146,5 +132,36 @@ public class MainActivity extends ActionBarActivity {
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    private class CellListener extends PhoneStateListener {
+        @Override
+        public void onCellLocationChanged(CellLocation location) {
+            if (mTelephonyManager.getPhoneType() != TelephonyManager.PHONE_TYPE_GSM)
+                return;
+
+            GsmCellLocation cellLocation = (GsmCellLocation) mTelephonyManager.getCellLocation();
+            File dbPath = new File(getExternalFilesDir(null), SQLiteDBHelper.DB_NAME);
+
+            if (cellLocation == null || !checkOrCreateDatabase(dbPath))
+                return;
+
+            SQLiteDatabase db = SQLiteDatabase.openDatabase(dbPath.getPath(), null, 0);
+            String selection = SQLiteDBHelper.ROW_CID + " = ? and " + SQLiteDBHelper.ROW_LAC + " = ?";
+            Cursor data = db.query(SQLiteDBHelper.TABLE_POINTS, new String[] {SQLiteDBHelper.ROW_LATITUDE, SQLiteDBHelper.ROW_LONGITUDE}, selection,
+                    new String[] {String.valueOf(cellLocation.getCid()), String.valueOf(cellLocation.getLac())}, null, null, null);
+
+            if (data.moveToFirst()) {
+                double currentLongitude = data.getDouble(0);
+                double currentLatitude = data.getDouble(1);
+
+                mCurrentCellLocationOverlay.setVisibility(true);
+                mCurrentCellLocationOverlay.setNewCellData(currentLongitude, currentLatitude);
+            } else
+                mCurrentCellLocationOverlay.setVisibility(false);
+
+            data.close();
+            db.close();
+        }
     }
 }
