@@ -14,7 +14,6 @@ import com.nextgis.maplib.map.MapDrawable;
 import com.nextgis.maplib.util.GeoConstants;
 import com.nextgis.maplibui.mapui.LayerFactoryUI;
 import com.nextgis.maplibui.mapui.RemoteTMSLayerUI;
-import com.nextgis.maplibui.mapui.VectorLayerUI;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -60,22 +59,16 @@ public class GISApplication extends Application implements IGISApplication {
         layer.setTMSType(GeoConstants.TMSTYPE_OSM);
         layer.setVisible(true);
 
-        createMetroLinesLayer();
-//        VectorLayerUI linesLayer = new VectorLayerUI(this, mMap.createLayerStorage());
-//        linesLayer.setName("Metro lines");
-//        linesLayer.setVisible(true);
-
         mMap.addLayer(layer);
-        mMap.moveLayer(0, layer);
         mMap.save();
+        createMetroLinesLayer();
     }
 
     private void createMetroLinesLayer() {
         try {
-//            InputStream inputStream = getContentResolver().openInputStream(mUri);
             InputStream inputStream = getAssets().open("lines.geojson");
 
-            if (inputStream != null) {
+            if (inputStream.available() > 0) {
                 //read all geojson
                 BufferedReader streamReader = new BufferedReader(new InputStreamReader(inputStream, "UTF-8"));
                 StringBuilder responseStrBuilder = new StringBuilder();
@@ -85,12 +78,13 @@ public class GISApplication extends Application implements IGISApplication {
                     responseStrBuilder.append(inputStr);
                 }
 
-                VectorLayerUI layer = new VectorLayerUI(mMap.getContext(), mMap.createLayerStorage());
+                MetroVectorLayer layer = new MetroVectorLayer(mMap.getContext(), mMap.createLayerStorage());
                 layer.setName("Metro lines");
                 layer.setVisible(true);
 
                 JSONObject geoJSONObject = new JSONObject(responseStrBuilder.toString());
                 String errorMessage = layer.createFromGeoJSON(geoJSONObject);
+                layer.reloadCache();
 
                 if(TextUtils.isEmpty(errorMessage)) {
                     mMap.addLayer(layer);
@@ -117,7 +111,7 @@ public class GISApplication extends Application implements IGISApplication {
         File mapFullPath = new File(defaultPath.getPath(), MAP_NAME + MAP_EXT);
 
         final Bitmap bkBitmap = BitmapFactory.decodeResource(getResources(), com.nextgis.maplibui.R.drawable.bk_tile);
-        mMap = new MapDrawable(bkBitmap, this, mapFullPath, new LayerFactoryUI());
+        mMap = new MapDrawable(bkBitmap, this, mapFullPath, new MetroLayerFactory());
         mMap.setName(MAP_NAME);
         mMap.load();
 
