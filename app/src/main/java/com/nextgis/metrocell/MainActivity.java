@@ -53,6 +53,10 @@ public class MainActivity extends ActionBarActivity {
             return;
 
         File dbPath = new File(getExternalFilesDir(null), SQLiteDBHelper.DB_NAME + ".sqlite");
+
+        if (!dbPath.exists() || !dbPath.isFile())
+            return;
+
         SQLiteDatabase db = SQLiteDatabase.openDatabase(dbPath.getPath(), null, 0);
 
         String selection = SQLiteDBHelper.ROW_CID + " = ? and " + SQLiteDBHelper.ROW_LAC + " = ?";

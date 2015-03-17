@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.preference.PreferenceManager;
+import android.text.TextUtils;
 import android.widget.Toast;
 
 import com.nextgis.maplib.api.IGISApplication;
@@ -13,8 +14,16 @@ import com.nextgis.maplib.map.MapDrawable;
 import com.nextgis.maplib.util.GeoConstants;
 import com.nextgis.maplibui.mapui.LayerFactoryUI;
 import com.nextgis.maplibui.mapui.RemoteTMSLayerUI;
+import com.nextgis.maplibui.mapui.VectorLayerUI;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 
 public class GISApplication extends Application implements IGISApplication {
     private static final String KEY_PREF_APP_FIRST_RUN = "is_first_run";
@@ -51,9 +60,46 @@ public class GISApplication extends Application implements IGISApplication {
         layer.setTMSType(GeoConstants.TMSTYPE_OSM);
         layer.setVisible(true);
 
+        createMetroLinesLayer();
+//        VectorLayerUI linesLayer = new VectorLayerUI(this, mMap.createLayerStorage());
+//        linesLayer.setName("Metro lines");
+//        linesLayer.setVisible(true);
+
         mMap.addLayer(layer);
         mMap.moveLayer(0, layer);
         mMap.save();
+    }
+
+    private void createMetroLinesLayer() {
+        try {
+//            InputStream inputStream = getContentResolver().openInputStream(mUri);
+            InputStream inputStream = getAssets().open("lines.geojson");
+
+            if (inputStream != null) {
+                //read all geojson
+                BufferedReader streamReader = new BufferedReader(new InputStreamReader(inputStream, "UTF-8"));
+                StringBuilder responseStrBuilder = new StringBuilder();
+                String inputStr;
+
+                while ((inputStr = streamReader.readLine()) != null) {
+                    responseStrBuilder.append(inputStr);
+                }
+
+                VectorLayerUI layer = new VectorLayerUI(mMap.getContext(), mMap.createLayerStorage());
+                layer.setName("Metro lines");
+                layer.setVisible(true);
+
+                JSONObject geoJSONObject = new JSONObject(responseStrBuilder.toString());
+                String errorMessage = layer.createFromGeoJSON(geoJSONObject);
+
+                if(TextUtils.isEmpty(errorMessage)) {
+                    mMap.addLayer(layer);
+                    mMap.save();
+                }
+            }
+        } catch (JSONException | IOException | SecurityException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
