@@ -1,10 +1,8 @@
 package com.nextgis.metrocell;
 
 import android.app.Application;
-import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.preference.PreferenceManager;
 import android.text.TextUtils;
 import android.widget.Toast;
 
@@ -12,7 +10,6 @@ import com.nextgis.maplib.api.IGISApplication;
 import com.nextgis.maplib.location.GpsEventSource;
 import com.nextgis.maplib.map.MapDrawable;
 import com.nextgis.maplib.util.GeoConstants;
-import com.nextgis.maplibui.mapui.LayerFactoryUI;
 import com.nextgis.maplibui.mapui.RemoteTMSLayerUI;
 
 import org.json.JSONException;
@@ -25,7 +22,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 
 public class GISApplication extends Application implements IGISApplication {
-    private static final String KEY_PREF_APP_FIRST_RUN = "is_first_run";
     private static final String AUTHORITY = "com.nextgis.metrocell";
     private static final String MAP_NAME = "default";
     private static final String MAP_EXT = ".ngm";
@@ -38,19 +34,10 @@ public class GISApplication extends Application implements IGISApplication {
         super.onCreate();
 
         mGpsEventSource = new GpsEventSource(this);
-
         getMap();
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
-
-        if (sharedPreferences.getBoolean(KEY_PREF_APP_FIRST_RUN, true)) {
-            onFirstRun();
-            SharedPreferences.Editor edit = sharedPreferences.edit();
-            edit.putBoolean(KEY_PREF_APP_FIRST_RUN, false);
-            edit.commit();
-        }
     }
 
-    private void onFirstRun() {
+    public void onFirstRun() {
         String layerName = getString(R.string.osm);
         String layerURL = getString(R.string.osm_url);
         RemoteTMSLayerUI layer = new RemoteTMSLayerUI(getApplicationContext(), mMap.createLayerStorage());

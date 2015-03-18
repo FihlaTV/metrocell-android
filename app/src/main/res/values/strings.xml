@@ -1,6 +1,8 @@
 <resources>
     <string name="app_name">Metrocell</string>
 
-    <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
+
+    <string name="first_run_title">Preparing data</string>
+    <string name="first_run">Preparing application\'s data at first run…</string>
 </resources>

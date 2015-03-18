@@ -1,11 +1,14 @@
 package com.nextgis.metrocell;
 
 import android.annotation.TargetApi;
+import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Build;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBarActivity;
 import android.telephony.CellLocation;
 import android.telephony.PhoneStateListener;
@@ -29,6 +32,8 @@ import java.io.OutputStream;
 
 
 public class MainActivity extends ActionBarActivity {
+    private static final String KEY_PREF_APP_FIRST_RUN = "is_first_run";
+
     private MapViewOverlays mMapView;
     CurrentCellLocationOverlay mCurrentCellLocationOverlay;
     TelephonyManager mTelephonyManager;
@@ -39,6 +44,30 @@ public class MainActivity extends ActionBarActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+
+        if (sharedPreferences.getBoolean(KEY_PREF_APP_FIRST_RUN, true)) {
+            final ProgressDialog pd = new ProgressDialog(this);
+            pd.setIndeterminate(true);
+            pd.setCancelable(false);
+            pd.setMessage(getString(R.string.first_run));
+            pd.setTitle(getString(R.string.first_run_title));
+            pd.show();
+
+            Thread t = new Thread() {
+                public void run() {
+                            ((GISApplication) getApplication()).onFirstRun();
+                            SharedPreferences.Editor edit = sharedPreferences.edit();
+                            edit.putBoolean(KEY_PREF_APP_FIRST_RUN, false);
+                            edit.commit();
+
+                            pd.dismiss();
+                }
+            };
+
+            t.start();
+        }
 
         mMapView = new MapViewOverlays(this, ((GISApplication) getApplication()).getMap());
 
