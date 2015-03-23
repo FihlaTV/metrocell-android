@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
@@ -39,6 +40,7 @@ public class MainActivity extends ActionBarActivity {
     CurrentCellLocationOverlay mCurrentCellLocationOverlay;
     TelephonyManager mTelephonyManager;
     CellListener mCellListener;
+    private boolean mIsInterfaceLoaded = false;
 //    private float mScaledDensity;
 
     @Override
@@ -46,30 +48,20 @@ public class MainActivity extends ActionBarActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        mTelephonyManager = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
+        mCellListener = new CellListener();
+
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
 
         if (sharedPreferences.getBoolean(KEY_PREF_APP_FIRST_RUN, true)) {
-            final ProgressDialog pd = new ProgressDialog(this);
-            pd.setIndeterminate(true);
-            pd.setCancelable(false);
-            pd.setMessage(getString(R.string.first_run));
-            pd.setTitle(getString(R.string.first_run_title));
-            pd.show();
-
-            Thread t = new Thread() {
-                public void run() {
-                            ((GISApplication) getApplication()).onFirstRun();
-                            SharedPreferences.Editor edit = sharedPreferences.edit();
-                            edit.putBoolean(KEY_PREF_APP_FIRST_RUN, false);
-                            edit.commit();
-
-                            pd.dismiss();
-                }
-            };
-
-            t.start();
+            new FirstRunTask(this).execute();
+            return;
         }
 
+        loadInterface();
+    }
+
+    private void loadInterface() {
         mMapView = new MapViewOverlays(this, ((GISApplication) getApplication()).getMap());
 
         ((FrameLayout) findViewById(R.id.map_view)).addView(mMapView, 0, new FrameLayout.LayoutParams(
@@ -82,8 +74,7 @@ public class MainActivity extends ActionBarActivity {
         mCurrentCellLocationOverlay = new CurrentCellLocationOverlay(this, mMapView, new GeoPoint(0, 0));
         mMapView.addOverlay(mCurrentCellLocationOverlay);
 
-        mTelephonyManager = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
-        mCellListener = new CellListener();
+        mIsInterfaceLoaded = true;
     }
 
     private boolean checkOrCreateDatabase(File path) {
@@ -164,10 +155,51 @@ public class MainActivity extends ActionBarActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    private class FirstRunTask extends AsyncTask<Context, Void, Void> {
+        private ProgressDialog mProgressDialog;
+        private Context mContext;
+
+        public FirstRunTask(Context context) {
+            mContext = context;
+        }
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+
+            mProgressDialog = new ProgressDialog(mContext);
+            mProgressDialog.setIndeterminate(true);
+            mProgressDialog.setCancelable(false);
+            mProgressDialog.setMessage(getString(R.string.first_run));
+            mProgressDialog.setTitle(getString(R.string.first_run_title));
+            mProgressDialog.show();
+        }
+
+        @Override
+        protected Void doInBackground(Context... params) {
+            ((GISApplication) getApplication()).onFirstRun();
+
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            super.onPostExecute(aVoid);
+
+            SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(mContext);
+            SharedPreferences.Editor edit = sharedPreferences.edit();
+            edit.putBoolean(KEY_PREF_APP_FIRST_RUN, false);
+            edit.commit();
+
+            loadInterface();
+            mProgressDialog.dismiss();
+        }
+    }
+
     private class CellListener extends PhoneStateListener {
         @Override
         public void onCellLocationChanged(CellLocation location) {
-            if (mTelephonyManager.getPhoneType() != TelephonyManager.PHONE_TYPE_GSM)
+            if (mTelephonyManager.getPhoneType() != TelephonyManager.PHONE_TYPE_GSM || !mIsInterfaceLoaded)
                 return;
 
             GsmCellLocation cellLocation = (GsmCellLocation) mTelephonyManager.getCellLocation();

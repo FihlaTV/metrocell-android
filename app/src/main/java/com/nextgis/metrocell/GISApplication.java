@@ -9,8 +9,8 @@ import android.widget.Toast;
 import com.nextgis.maplib.api.IGISApplication;
 import com.nextgis.maplib.location.GpsEventSource;
 import com.nextgis.maplib.map.MapDrawable;
+import com.nextgis.maplib.map.RemoteTMSLayer;
 import com.nextgis.maplib.util.GeoConstants;
-import com.nextgis.maplibui.mapui.RemoteTMSLayerUI;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -40,7 +40,8 @@ public class GISApplication extends Application implements IGISApplication {
     public void onFirstRun() {
         String layerName = getString(R.string.osm);
         String layerURL = getString(R.string.osm_url);
-        RemoteTMSLayerUI layer = new RemoteTMSLayerUI(getApplicationContext(), mMap.createLayerStorage());
+//        RemoteTMSLayerUI layer = new RemoteTMSLayerUI(getApplicationContext(), mMap.createLayerStorage());
+        RemoteTMSLayer layer = new RemoteTMSLayer(getApplicationContext(), mMap.createLayerStorage());
         layer.setName(layerName);
         layer.setURL(layerURL);
         layer.setTMSType(GeoConstants.TMSTYPE_OSM);
