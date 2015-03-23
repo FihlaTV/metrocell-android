@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Metrocell</string>
+
+    <string name="action_settings">Настройки</string>
+
+    <string name="first_run_title">Подготовка данных</string>
+    <string name="first_run">Подготовка данных при первом запуске…</string>
+</resources>
