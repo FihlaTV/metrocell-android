@@ -11,6 +11,8 @@ import com.nextgis.maplib.location.GpsEventSource;
 import com.nextgis.maplib.map.MapDrawable;
 import com.nextgis.maplib.map.RemoteTMSLayer;
 import com.nextgis.maplib.util.GeoConstants;
+import com.nextgis.metrocell.maplib.MetroLayerFactory;
+import com.nextgis.metrocell.maplib.MetroVectorLayer;
 
 import org.json.JSONException;
 import org.json.JSONObject;

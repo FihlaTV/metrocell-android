@@ -1,4 +1,4 @@
-package com.nextgis.metrocell;
+package com.nextgis.metrocell.maplib;
 
 import android.graphics.Color;
 import android.graphics.Paint;

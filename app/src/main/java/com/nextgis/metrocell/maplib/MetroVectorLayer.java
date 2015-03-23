@@ -1,4 +1,4 @@
-package com.nextgis.metrocell;
+package com.nextgis.metrocell.maplib;
 
 import android.content.Context;
 import android.database.Cursor;
@@ -173,7 +173,7 @@ public class MetroVectorLayer extends VectorLayer {
     }
 
     @Override
-    protected void reloadCache()
+    public void reloadCache()
             throws SQLiteException
     {
         //load vector cache

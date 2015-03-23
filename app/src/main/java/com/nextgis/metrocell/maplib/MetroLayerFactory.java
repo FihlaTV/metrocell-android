@@ -1,4 +1,4 @@
-package com.nextgis.metrocell;
+package com.nextgis.metrocell.maplib;
 
 import android.content.Context;
 import android.net.Uri;
@@ -7,12 +7,7 @@ import android.util.Log;
 import com.nextgis.maplib.api.ILayer;
 import com.nextgis.maplib.map.LayerFactory;
 import com.nextgis.maplib.map.LayerGroup;
-import com.nextgis.maplib.map.LocalTMSLayer;
-import com.nextgis.maplib.map.NGWRasterLayer;
-import com.nextgis.maplib.map.NGWVectorLayer;
 import com.nextgis.maplib.map.RemoteTMSLayer;
-import com.nextgis.maplib.map.TrackLayer;
-import com.nextgis.maplib.map.VectorLayer;
 import com.nextgis.maplib.util.FileUtil;
 
 import org.json.JSONException;

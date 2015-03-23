@@ -1,6 +1,4 @@
-package com.nextgis.metrocell;
-
-import android.graphics.Color;
+package com.nextgis.metrocell.maplib;
 
 import com.nextgis.maplib.datasource.GeoLineString;
 import com.nextgis.maplib.datasource.GeoPoint;

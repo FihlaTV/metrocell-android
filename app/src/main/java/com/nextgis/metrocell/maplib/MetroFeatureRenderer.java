@@ -1,4 +1,4 @@
-package com.nextgis.metrocell;
+package com.nextgis.metrocell.maplib;
 
 import com.nextgis.maplib.display.SimpleFeatureRenderer;
 import com.nextgis.maplib.display.SimpleMarkerStyle;
