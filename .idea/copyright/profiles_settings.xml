@@ -1,3 +1,7 @@
 <component name="CopyrightManager">
-  <settings default="" />
+  <settings default="Metrocell">
+    <module2copyright>
+      <element module="All" copyright="Metrocell" />
+    </module2copyright>
+  </settings>
 </component>
