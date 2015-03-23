@@ -8,9 +8,9 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/android_maplib" />
+            <option value="$PROJECT_DIR$/android_maplibui" />
             <option value="$PROJECT_DIR$/app" />
-            <option value="$PROJECT_DIR$/maplib" />
-            <option value="$PROJECT_DIR$/maplibui" />
           </set>
         </option>
       </GradleProjectSettings>

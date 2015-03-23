@@ -3,9 +3,9 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/Metrocell.iml" filepath="$PROJECT_DIR$/Metrocell.iml" />
+      <module fileurl="file://$PROJECT_DIR$/android_maplib/android_maplib.iml" filepath="$PROJECT_DIR$/android_maplib/android_maplib.iml" />
+      <module fileurl="file://$PROJECT_DIR$/android_maplibui/android_maplibui.iml" filepath="$PROJECT_DIR$/android_maplibui/android_maplibui.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
-      <module fileurl="file://$PROJECT_DIR$/maplib/maplib.iml" filepath="$PROJECT_DIR$/maplib/maplib.iml" />
-      <module fileurl="file://$PROJECT_DIR$/maplibui/maplibui.iml" filepath="$PROJECT_DIR$/maplibui/maplibui.iml" />
     </modules>
   </component>
 </project>
