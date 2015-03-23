@@ -20,6 +20,7 @@ import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.RelativeLayout;
 
+import com.nextgis.maplib.datasource.GeoLineString;
 import com.nextgis.maplib.datasource.GeoPoint;
 import com.nextgis.maplib.util.GeoConstants;
 import com.nextgis.maplibui.MapViewOverlays;
@@ -172,25 +173,41 @@ public class MainActivity extends ActionBarActivity {
             GsmCellLocation cellLocation = (GsmCellLocation) mTelephonyManager.getCellLocation();
             File dbPath = new File(getExternalFilesDir(null), SQLiteDBHelper.DB_NAME);
 
-            if (cellLocation == null || !checkOrCreateDatabase(dbPath))
+            if (!isCellLocationValid(cellLocation) || !checkOrCreateDatabase(dbPath))
                 return;
 
             SQLiteDatabase db = SQLiteDatabase.openDatabase(dbPath.getPath(), null, 0);
             String selection = SQLiteDBHelper.ROW_CID + " = ? and " + SQLiteDBHelper.ROW_LAC + " = ?";
             Cursor data = db.query(SQLiteDBHelper.TABLE_POINTS, new String[] {SQLiteDBHelper.ROW_LATITUDE, SQLiteDBHelper.ROW_LONGITUDE}, selection,
                     new String[] {String.valueOf(cellLocation.getCid()), String.valueOf(cellLocation.getLac())}, null, null, null);
+//                    new String[] {String.valueOf(382), String.valueOf(770)}, null, null, null);
 
             if (data.moveToFirst()) {
-                double currentLongitude = data.getDouble(0);
-                double currentLatitude = data.getDouble(1);
+                GeoLineString geoPosition = new GeoLineString();
+                geoPosition.setCRS(GeoConstants.CRS_WGS84);
+                geoPosition.add(new GeoPoint(data.getDouble(0), data.getDouble(1)));
+
+                while (data.moveToNext()) {
+                    geoPosition.add(new GeoPoint(data.getDouble(0), data.getDouble(1)));
+                }
+
+//                geoPosition.project(GeoConstants.CRS_WEB_MERCATOR);
+
+//                double currentLongitude = data.getDouble(0);
+//                double currentLatitude = data.getDouble(1);
 
                 mCurrentCellLocationOverlay.setVisibility(true);
-                mCurrentCellLocationOverlay.setNewCellData(currentLongitude, currentLatitude);
+//                mCurrentCellLocationOverlay.setNewCellPoint(currentLongitude, currentLatitude);
+                mCurrentCellLocationOverlay.setNewCellLine(geoPosition);
             } else
                 mCurrentCellLocationOverlay.setVisibility(false);
 
             data.close();
             db.close();
+        }
+
+        private boolean isCellLocationValid(GsmCellLocation cellLocation) {
+            return cellLocation != null && (cellLocation.getLac() > 0 && cellLocation.getCid() > 0);
         }
     }
 }

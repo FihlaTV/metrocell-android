@@ -4,38 +4,58 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.ColorFilter;
 import android.graphics.LightingColorFilter;
 import android.graphics.Paint;
 import android.graphics.PointF;
 
+import com.nextgis.maplib.datasource.GeoLineString;
 import com.nextgis.maplib.datasource.GeoPoint;
 import com.nextgis.maplib.map.MapDrawable;
+import com.nextgis.maplib.util.GeoConstants;
 import com.nextgis.maplibui.MapViewOverlays;
 import com.nextgis.maplibui.api.Overlay;
 import com.nextgis.maplibui.api.OverlayItem;
+
+import java.util.List;
 
 public class CurrentCellLocationOverlay extends Overlay {
     OverlayItem mMarker;
     double mLat, mLong;
     boolean mIsVisible = false;
+    List<GeoPoint> mPoints;
+    Paint mPaint;
+    int mWidth = 6;
 
     public CurrentCellLocationOverlay(Context context, MapViewOverlays mapViewOverlays, GeoPoint initialPosition) {
         super(context, mapViewOverlays);
 
         Bitmap marker = BitmapFactory.decodeResource(context.getResources(), R.drawable.ic_location).copy(Bitmap.Config.ARGB_8888, true);
-        Paint paint = new Paint();
-        ColorFilter filter = new LightingColorFilter(context.getResources().getColor(R.color.accent), 1);
-        paint.setColorFilter(filter);
-        Canvas canvas = new Canvas(marker);
-        canvas.drawBitmap(marker, 0, 0, paint);
+//        Paint paint = new Paint();
+        mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+//        int color = context.getResources().getColor(R.color.accent);
+        int color = Color.DKGRAY;
+//        ColorFilter filter = new LightingColorFilter(color, 1);
+//        mPaint.setColorFilter(filter);
+        mPaint.setColor(color);
+//        Canvas canvas = new Canvas(marker);
+//        canvas.drawBitmap(marker, 0, 0, mPaint);
+        mPaint.setStyle(Paint.Style.STROKE);
+        mPaint.setStrokeCap(Paint.Cap.ROUND);
 
         mLat = initialPosition.getY();
         mLong = initialPosition.getX();
         mMarker = new OverlayItem(mapViewOverlays.getMap(), initialPosition, marker);
     }
 
-    public void setNewCellData(double longitude, double latitude) {
+    public void setNewCellLine(GeoLineString line) {
+        mPoints = line.getPoints();
+        line.project(GeoConstants.CRS_WEB_MERCATOR);
+        mMapViewOverlays.postInvalidate();
+    }
+
+    public void setNewCellPoint(double longitude, double latitude) {
         mLong = longitude;
         mLat = latitude;
         mMapViewOverlays.postInvalidate();
@@ -48,8 +68,17 @@ public class CurrentCellLocationOverlay extends Overlay {
     @Override
     public void draw(Canvas canvas, MapDrawable mapDrawable) {
         if (mIsVisible) {
-            mMarker.setCoordinates(mLong, mLat);
-            drawOverlayItem(canvas, mMarker);
+            mPaint.setStrokeWidth((float) (mWidth));
+            GeoPoint x0 = mapDrawable.mapToScreen(mPoints.get(0)), x1;
+
+            for (int i = 1; i < mPoints.size(); i++) {
+                x1 = mapDrawable.mapToScreen(mPoints.get(i - 1));
+                canvas.drawLine((float) x0.getX(), (float) x0.getY(), (float) x1.getX(), (float) x1.getY(), mPaint);
+                x0 = x1;
+            }
+
+//            mMarker.setCoordinates(mLong, mLat);
+//            drawOverlayItem(canvas, mMarker);
         }
     }
 
