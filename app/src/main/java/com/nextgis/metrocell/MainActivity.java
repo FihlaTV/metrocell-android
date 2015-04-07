@@ -309,7 +309,17 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
                     mMapView.panTo(mCurrentPoint);
             } else {
                 setStatus(status.STATUS_NOT_FOUND);
+                sendReport();
             }
+        }
+
+        private void sendReport() {
+            final Bundle data = new Bundle();
+            data.putString(Constants.CELL_LAC, mLac);
+            data.putString(Constants.CELL_CID, mCid);
+
+            Reporter reporter = new Reporter();
+            reporter.execute(data);
         }
     }
 

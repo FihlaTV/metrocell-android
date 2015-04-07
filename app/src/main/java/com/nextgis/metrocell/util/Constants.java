@@ -24,4 +24,7 @@ package com.nextgis.metrocell.util;
 public interface Constants {
     public final static String PREF_APP_VERSION     = "app_version";
     public final static String PREF_APP_FIRST_RUN   = "is_first_run";
+
+    public final static String CELL_LAC   = "lac";
+    public final static String CELL_CID   = "cid";
 }
