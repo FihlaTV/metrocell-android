@@ -46,8 +46,9 @@ public class CurrentCellLocationOverlay extends Overlay {
     double mLat, mLong;
     boolean mIsVisible = false;
     List<GeoPoint> mPoints;
-    Paint mPaint;
-    int mWidth = 6;
+    Paint mPaint, mPaintFill;
+    int mWidth = 1;
+    int mRadius = 6;
 
     public CurrentCellLocationOverlay(Context context, MapViewOverlays mapViewOverlays, GeoPoint initialPosition) {
         super(context, mapViewOverlays);
@@ -55,15 +56,18 @@ public class CurrentCellLocationOverlay extends Overlay {
         Bitmap marker = BitmapFactory.decodeResource(context.getResources(), R.drawable.ic_location).copy(Bitmap.Config.ARGB_8888, true);
 
         mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        mPaintFill = new Paint(Paint.ANTI_ALIAS_FLAG);
 //        int color = context.getResources().getColor(R.color.pink);
         int color = Color.MAGENTA;
 //        ColorFilter filter = new LightingColorFilter(color, 1);
 //        mPaint.setColorFilter(filter);
         mPaint.setColor(color);
+        mPaintFill.setColor(color);
 //        Canvas canvas = new Canvas(marker);
 //        canvas.drawBitmap(marker, 0, 0, mPaint);
         mPaint.setStyle(Paint.Style.STROKE);
-        mPaint.setStrokeCap(Paint.Cap.ROUND);
+        mPaint.setStrokeWidth((float) (mWidth));
+//        mPaint.setStrokeCap(Paint.Cap.ROUND);
 
         mLat = initialPosition.getY();
         mLong = initialPosition.getX();
@@ -89,13 +93,15 @@ public class CurrentCellLocationOverlay extends Overlay {
     @Override
     public void draw(Canvas canvas, MapDrawable mapDrawable) {
         if (mIsVisible) {
-            mPaint.setStrokeWidth((float) (mWidth));
-            GeoPoint x0 = mapDrawable.mapToScreen(mPoints.get(0)), x1;
+            GeoPoint x0;
 
-            for (int i = 1; i < mPoints.size(); i++) {
-                x1 = mapDrawable.mapToScreen(mPoints.get(i - 1));
-                canvas.drawLine((float) x0.getX(), (float) x0.getY(), (float) x1.getX(), (float) x1.getY(), mPaint);
-                x0 = x1;
+            for (int i = 0; i < mPoints.size(); i++) {
+                x0 = mapDrawable.mapToScreen(mPoints.get(i));
+                canvas.drawCircle((float) x0.getX(), (float) x0.getY(), mRadius, mPaintFill);
+//            for (int i = 1; i < mPoints.size(); i++) {
+//                x1 = mapDrawable.mapToScreen(mPoints.get(i - 1));
+//                canvas.drawLine((float) x0.getX(), (float) x0.getY(), (float) x1.getX(), (float) x1.getY(), mPaint);
+//                x0 = x1;
             }
 
 //            mMarker.setCoordinates(mLong, mLat);
