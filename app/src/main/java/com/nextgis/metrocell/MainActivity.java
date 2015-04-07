@@ -41,13 +41,17 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 
+import com.melnykov.fab.FloatingActionButton;
 import com.nextgis.maplib.datasource.GeoLineString;
 import com.nextgis.maplib.datasource.GeoPoint;
 import com.nextgis.maplib.util.GeoConstants;
 import com.nextgis.maplibui.MapViewOverlays;
 import com.nextgis.maplibui.util.SettingsConstantsUI;
+import com.nineoldandroids.view.ViewHelper;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -56,21 +60,35 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 
-public class MainActivity extends ActionBarActivity {
+public class MainActivity extends ActionBarActivity implements View.OnClickListener {
     private static final String KEY_PREF_APP_FIRST_RUN = "is_first_run";
+
+    enum status { STATUS_SEARCHING, STATUS_NOT_FOUND, STATUS_FOUND }
 
     private MapViewOverlays mMapView;
     CurrentCellLocationOverlay mCurrentCellLocationOverlay;
+
     TelephonyManager mTelephonyManager;
     CellListener mCellListener;
+
     private boolean mIsInterfaceLoaded = false;
     private SharedPreferences mSharedPreferences;
+
+    private ImageView mImageViewStatus;
+    private ProgressBar mProgressStatus;
+    private FloatingActionButton mFAB;
 //    private float mScaledDensity;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        mFAB = (FloatingActionButton) findViewById(R.id.fab);
+        mFAB.setOnClickListener(this);
+        mProgressStatus = (ProgressBar) findViewById(R.id.pb_status);
+        mImageViewStatus = (ImageView) findViewById(R.id.iv_status);
+        ViewHelper.setAlpha(mImageViewStatus, 0.8f);
 
         mTelephonyManager = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
         mCellListener = new CellListener();
@@ -182,6 +200,34 @@ public class MainActivity extends ActionBarActivity {
         }
     }
 
+    @Override
+    public void onClick(View v) {
+        switch (v.getId()) {
+            case R.id.fab:
+                
+                break;
+        }
+    }
+
+    private void setStatus(status status) {
+        switch (status) {
+            case STATUS_SEARCHING:
+                mProgressStatus.setVisibility(View.VISIBLE);
+                mImageViewStatus.setVisibility(View.GONE);
+                break;
+            case STATUS_NOT_FOUND:
+                mProgressStatus.setVisibility(View.GONE);
+                mImageViewStatus.setVisibility(View.VISIBLE);
+                mImageViewStatus.setImageResource(R.drawable.ic_error_red_24dp);
+                break;
+            case STATUS_FOUND:
+                mProgressStatus.setVisibility(View.GONE);
+                mImageViewStatus.setVisibility(View.VISIBLE);
+                mImageViewStatus.setImageResource(R.drawable.ic_success_green_24dp);
+                break;
+        }
+    }
+
     private class FirstRunTask extends AsyncTask<Context, Void, Void> {
         private ProgressDialog mProgressDialog;
         private Context mContext;
@@ -226,6 +272,8 @@ public class MainActivity extends ActionBarActivity {
     private class CellListener extends PhoneStateListener {
         @Override
         public void onCellLocationChanged(CellLocation location) {
+            setStatus(status.STATUS_SEARCHING);
+
             if (mTelephonyManager.getPhoneType() != TelephonyManager.PHONE_TYPE_GSM || !mIsInterfaceLoaded)
                 return;
 
@@ -237,8 +285,8 @@ public class MainActivity extends ActionBarActivity {
 
             SQLiteDatabase db = SQLiteDatabase.openDatabase(dbPath.getPath(), null, 0);
             String selection = SQLiteDBHelper.ROW_CID + " = ? and " + SQLiteDBHelper.ROW_LAC + " = ?";
-            Cursor data = db.query(SQLiteDBHelper.TABLE_POINTS, new String[] {SQLiteDBHelper.ROW_LATITUDE, SQLiteDBHelper.ROW_LONGITUDE}, selection,
-                    new String[] {String.valueOf(cellLocation.getCid()), String.valueOf(cellLocation.getLac())}, null, null, null);
+            Cursor data = db.query(SQLiteDBHelper.TABLE_POINTS, new String[]{SQLiteDBHelper.ROW_LATITUDE, SQLiteDBHelper.ROW_LONGITUDE}, selection,
+                    new String[]{String.valueOf(cellLocation.getCid()), String.valueOf(cellLocation.getLac())}, null, null, null);
 //                    new String[] {String.valueOf(382), String.valueOf(770)}, null, null, null);
 
             if (data.moveToFirst()) {
@@ -258,8 +306,11 @@ public class MainActivity extends ActionBarActivity {
                 mCurrentCellLocationOverlay.setVisibility(true);
 //                mCurrentCellLocationOverlay.setNewCellPoint(currentLongitude, currentLatitude);
                 mCurrentCellLocationOverlay.setNewCellLine(geoPosition);
-            } else
+                setStatus(status.STATUS_FOUND);
+            } else {
                 mCurrentCellLocationOverlay.setVisibility(false);
+                setStatus(status.STATUS_NOT_FOUND);
+            }
 
             data.close();
             db.close();
