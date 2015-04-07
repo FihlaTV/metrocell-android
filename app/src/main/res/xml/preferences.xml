@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <!--
   ~ Project:  Metrocell
   ~ Purpose:  Locating in metro by cell towers
@@ -18,14 +19,13 @@
   ~ You should have received a copy of the GNU General Public License
   ~ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   -->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+                  android:title="@string/action_settings">
 
-<resources>
-    <string name="app_name">Metrocell</string>
+    <CheckBoxPreference
+        android:defaultValue="true"
+        android:key="keep_screen_on"
+        android:summary="@string/settings_keep_screen_on_sum"
+        android:title="@string/settings_keep_screen_on"/>
 
-    <string name="action_settings">Настройки</string>
-    <string name="settings_keep_screen_on">Не выключать экран</string>
-    <string name="settings_keep_screen_on_sum">На карте экран всегда включен</string>
-
-    <string name="first_run_title">Подготовка данных</string>
-    <string name="first_run">Подготовка данных при первом запуске…</string>
-</resources>
+</PreferenceScreen>

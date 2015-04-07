@@ -39,6 +39,7 @@ import android.telephony.gsm.GsmCellLocation;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.RelativeLayout;
 
@@ -46,6 +47,7 @@ import com.nextgis.maplib.datasource.GeoLineString;
 import com.nextgis.maplib.datasource.GeoPoint;
 import com.nextgis.maplib.util.GeoConstants;
 import com.nextgis.maplibui.MapViewOverlays;
+import com.nextgis.maplibui.util.SettingsConstantsUI;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -62,6 +64,7 @@ public class MainActivity extends ActionBarActivity {
     TelephonyManager mTelephonyManager;
     CellListener mCellListener;
     private boolean mIsInterfaceLoaded = false;
+    private SharedPreferences mSharedPreferences;
 //    private float mScaledDensity;
 
     @Override
@@ -72,9 +75,10 @@ public class MainActivity extends ActionBarActivity {
         mTelephonyManager = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
         mCellListener = new CellListener();
 
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        PreferenceManager.setDefaultValues(this, R.xml.preferences, false);
+        mSharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
 
-        if (sharedPreferences.getBoolean(KEY_PREF_APP_FIRST_RUN, true)) {
+        if (mSharedPreferences.getBoolean(KEY_PREF_APP_FIRST_RUN, true)) {
             new FirstRunTask(this).execute();
             return;
         }
@@ -151,6 +155,12 @@ public class MainActivity extends ActionBarActivity {
     @Override
     protected void onResume() {
         super.onResume();
+
+        if (mSharedPreferences.getBoolean(SettingsConstantsUI.KEY_PREF_KEEPSCREENON, true))
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        else
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
         mTelephonyManager.listen(mCellListener, PhoneStateListener.LISTEN_CELL_LOCATION);
     }
 
@@ -163,17 +173,13 @@ public class MainActivity extends ActionBarActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
+        switch (item.getItemId()) {
+            case R.id.action_settings:
+                ((GISApplication) getApplication()).showSettings();
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
         }
-
-        return super.onOptionsItemSelected(item);
     }
 
     private class FirstRunTask extends AsyncTask<Context, Void, Void> {

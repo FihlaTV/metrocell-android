@@ -22,6 +22,7 @@
 package com.nextgis.metrocell;
 
 import android.app.Application;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.text.TextUtils;
@@ -141,6 +142,8 @@ public class GISApplication extends Application implements IGISApplication {
 
     @Override
     public void showSettings() {
-
+        Intent preferences = new Intent(this, PreferencesActivity.class);
+        preferences.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(preferences);
     }
 }
