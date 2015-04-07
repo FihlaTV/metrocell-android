@@ -51,8 +51,7 @@
         <activity
             android:name=".PreferencesActivity"
             android:label="@string/action_settings"
-            android:parentActivityName=".MainActivity"
-            android:theme="@style/Theme.Settings">
+            android:parentActivityName=".MainActivity">
 
             <!-- Parent activity meta-data to support 4.0 and lower -->
             <meta-data
