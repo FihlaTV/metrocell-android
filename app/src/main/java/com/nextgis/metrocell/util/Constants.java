@@ -19,30 +19,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-apply plugin: 'com.android.application'
+package com.nextgis.metrocell.util;
 
-android {
-    compileSdkVersion 22
-    buildToolsVersion "22.0.1"
-
-    defaultConfig {
-        applicationId "com.nextgis.metrocell"
-        minSdkVersion 8
-        targetSdkVersion 22
-        versionCode 2
-        versionName "1.0.1"
-    }
-    buildTypes {
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-        }
-    }
-}
-
-dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
-    compile 'com.android.support:appcompat-v7:22.0.0'
-    compile 'com.melnykov:floatingactionbutton:1.2.0'
-    compile project(':android_maplibui')
+public interface Constants {
+    public final static String PREF_APP_VERSION     = "app_version";
+    public final static String PREF_APP_FIRST_RUN   = "is_first_run";
 }

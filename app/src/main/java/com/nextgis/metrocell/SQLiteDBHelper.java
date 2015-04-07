@@ -31,8 +31,8 @@ public class SQLiteDBHelper extends SQLiteOpenHelper {
 
     public final static String TABLE_POINTS = "log_points";
 
-    public final static String ROW_LATITUDE = "xcoord";
-    public final static String ROW_LONGITUDE = "ycoord";
+    public final static String ROW_LATITUDE = "x";
+    public final static String ROW_LONGITUDE = "y";
     public final static String ROW_LAC = "lac";
     public final static String ROW_CID = "cid";
     public final static String ROW_PSC = "psc";

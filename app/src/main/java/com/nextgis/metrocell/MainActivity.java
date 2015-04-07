@@ -50,6 +50,7 @@ import com.nextgis.maplib.datasource.GeoPoint;
 import com.nextgis.maplib.util.GeoConstants;
 import com.nextgis.maplibui.MapViewOverlays;
 import com.nextgis.maplibui.util.SettingsConstantsUI;
+import com.nextgis.metrocell.util.Constants;
 import com.nineoldandroids.view.ViewHelper;
 
 import java.io.File;
@@ -60,9 +61,7 @@ import java.io.OutputStream;
 
 
 public class MainActivity extends ActionBarActivity implements View.OnClickListener {
-    private static final String KEY_PREF_APP_FIRST_RUN = "is_first_run";
-
-    enum status { STATUS_SEARCHING, STATUS_NOT_FOUND, STATUS_FOUND }
+    enum status {STATUS_SEARCHING, STATUS_NOT_FOUND, STATUS_FOUND}
 
     private MapViewOverlays mMapView;
     CurrentCellLocationOverlay mCurrentCellLocationOverlay;
@@ -96,7 +95,7 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
         PreferenceManager.setDefaultValues(this, R.xml.preferences, false);
         mSharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
 
-        if (mSharedPreferences.getBoolean(KEY_PREF_APP_FIRST_RUN, true)) {
+        if (mSharedPreferences.getBoolean(Constants.PREF_APP_FIRST_RUN, true)) {
             new FirstRunTask(this).execute();
             return;
         }
@@ -120,11 +119,13 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
         mIsInterfaceLoaded = true;
     }
 
-    private boolean checkOrCreateDatabase(File path) {
-        if (!path.exists() || !path.isFile()) {
+    private boolean checkOrCreateDatabase() {
+        File dbPath = ((GISApplication) getApplication()).getDBPath();
+
+        if (dbPath != null && (!dbPath.exists() || !dbPath.isFile())) {
             try {
                 InputStream input = getAssets().open(SQLiteDBHelper.DB_NAME);
-                OutputStream output = new FileOutputStream(path);
+                OutputStream output = new FileOutputStream(dbPath);
 
                 byte[] buffer = new byte[1024];
                 int length;
@@ -217,12 +218,11 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
             return;
 
         GsmCellLocation cellLocation = (GsmCellLocation) mTelephonyManager.getCellLocation();
-        File dbPath = new File(getExternalFilesDir(null), SQLiteDBHelper.DB_NAME);
 
-        if (!isCellLocationValid(cellLocation) || !checkOrCreateDatabase(dbPath))
+        if (!isCellLocationValid(cellLocation) || !checkOrCreateDatabase())
             return;
 
-        FindLocationInDB finder = new FindLocationInDB(cellLocation, dbPath);
+        FindLocationInDB finder = new FindLocationInDB(cellLocation);
         finder.execute();
     }
 
@@ -251,20 +251,18 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
 
     private class FindLocationInDB extends AsyncTask<Void, Void, Boolean> {
         private String mCid, mLac;
-        private File mDBPath;
         private GeoPoint mCurrentPoint;
 
-        public FindLocationInDB(GsmCellLocation cellLocation, File dbPath) {
+        public FindLocationInDB(GsmCellLocation cellLocation) {
             mCid = String.valueOf(cellLocation.getCid());
             mLac = String.valueOf(cellLocation.getLac());
-            mDBPath = dbPath;
         }
 
         @Override
         protected Boolean doInBackground(Void... params) {
             boolean result = false;
 
-            SQLiteDatabase db = SQLiteDatabase.openDatabase(mDBPath.getPath(), null, 0);
+            SQLiteDatabase db = SQLiteDatabase.openDatabase(((GISApplication) getApplication()).getDBPath().getPath(), null, 0);
             String selection = SQLiteDBHelper.ROW_CID + " = ? and " + SQLiteDBHelper.ROW_LAC + " = ?";
             Cursor data = db.query(SQLiteDBHelper.TABLE_POINTS, new String[]{SQLiteDBHelper.ROW_LATITUDE, SQLiteDBHelper.ROW_LONGITUDE}, selection,
                     new String[]{mCid, mLac}, null, null, null);
@@ -348,7 +346,7 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
 
             SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(mContext);
             SharedPreferences.Editor edit = sharedPreferences.edit();
-            edit.putBoolean(KEY_PREF_APP_FIRST_RUN, false);
+            edit.putBoolean(Constants.PREF_APP_FIRST_RUN, false);
             edit.commit();
 
             loadInterface();

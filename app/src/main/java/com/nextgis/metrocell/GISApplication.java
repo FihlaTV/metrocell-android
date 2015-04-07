@@ -23,8 +23,11 @@ package com.nextgis.metrocell;
 
 import android.app.Application;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.preference.PreferenceManager;
 import android.text.TextUtils;
 import android.widget.Toast;
 
@@ -32,9 +35,11 @@ import com.nextgis.maplib.api.IGISApplication;
 import com.nextgis.maplib.location.GpsEventSource;
 import com.nextgis.maplib.map.MapDrawable;
 import com.nextgis.maplib.map.RemoteTMSLayer;
+import com.nextgis.maplib.util.FileUtil;
 import com.nextgis.maplib.util.GeoConstants;
 import com.nextgis.metrocell.maplib.MetroLayerFactory;
 import com.nextgis.metrocell.maplib.MetroVectorLayer;
+import com.nextgis.metrocell.util.Constants;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -52,10 +57,14 @@ public class GISApplication extends Application implements IGISApplication {
 
     private MapDrawable mMap;
     private GpsEventSource mGpsEventSource;
+    private SharedPreferences mSharedPreferences;
 
     @Override
     public void onCreate() {
         super.onCreate();
+
+        mSharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        updateApplicationStructure();
 
         mGpsEventSource = new GpsEventSource(this);
         getMap();
@@ -98,7 +107,7 @@ public class GISApplication extends Application implements IGISApplication {
                 String errorMessage = layer.createFromGeoJSON(geoJSONObject);
                 layer.reloadCache();
 
-                if(TextUtils.isEmpty(errorMessage)) {
+                if (TextUtils.isEmpty(errorMessage)) {
                     mMap.addLayer(layer);
                     mMap.save();
                 }
@@ -140,10 +149,36 @@ public class GISApplication extends Application implements IGISApplication {
         return mGpsEventSource;
     }
 
+    public File getDBPath() {
+        if (getExternalFilesDir(null) != null)
+            return new File(getExternalFilesDir(null), SQLiteDBHelper.DB_NAME);
+        else
+            return null;
+    }
+
     @Override
     public void showSettings() {
         Intent preferences = new Intent(this, PreferencesActivity.class);
         preferences.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(preferences);
+    }
+
+    private void updateApplicationStructure() {
+        try {
+            int currentVersionCode = getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
+            int savedVersionCode = mSharedPreferences.getInt(Constants.PREF_APP_VERSION, 0);
+
+            switch (savedVersionCode) {
+                case 0:
+                    FileUtil.deleteRecursive(getDBPath());
+                default:
+                    break;
+            }
+
+            if (savedVersionCode < currentVersionCode) {
+                mSharedPreferences.edit().putInt(Constants.PREF_APP_VERSION, currentVersionCode).commit();
+            }
+        } catch (PackageManager.NameNotFoundException ignored) {
+        }
     }
 }
