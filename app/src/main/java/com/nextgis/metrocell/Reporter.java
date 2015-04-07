@@ -21,26 +21,36 @@
 
 package com.nextgis.metrocell;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.AsyncTask;
-import android.os.Bundle;
+import android.preference.PreferenceManager;
+import android.text.TextUtils;
 
 import com.nextgis.metrocell.util.Constants;
 import com.nextgis.metrocell.util.ConstantsSecured;
 import com.nextgis.metrocell.util.Mail;
 
-public class Reporter extends AsyncTask<Bundle, Void, Boolean> {
-    @Override
-    protected Boolean doInBackground(Bundle... params) {
-        Bundle data = params[0];
+public class Reporter extends AsyncTask<String, Void, Boolean> {
+    private Context mContext;
+    private String mData;
 
-        if (data == null)
+    public Reporter(Context context) {
+        mContext = context;
+    }
+
+    @Override
+    protected Boolean doInBackground(String... params) {
+        mData = params[0];
+
+        if (TextUtils.isEmpty(mData))
             return true;
 
         Mail mail = new Mail(ConstantsSecured.EMAIL_FROM, ConstantsSecured.EMAIL_PASS);
         mail.setTo(new String[]{ConstantsSecured.EMAIL_TO});
         mail.setFrom(ConstantsSecured.EMAIL_FROM);
         mail.setSubject(String.format("Not found"));
-        mail.setBody(String.format("LAC: %s CID: %s", data.getString(Constants.CELL_LAC), data.getString(Constants.CELL_CID)));
+        mail.setBody(mData);
 
         try {
             return mail.send();
@@ -49,5 +59,17 @@ public class Reporter extends AsyncTask<Bundle, Void, Boolean> {
         }
 
         return false;
+    }
+
+    @Override
+    protected void onPostExecute(Boolean result) {
+        super.onPostExecute(result);
+
+        if (!result) {
+            SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(mContext);
+            String savedMails = preferences.getString(Constants.PREF_APP_SAVED_MAILS, "");
+            savedMails += mData + ";";
+            preferences.edit().putString(Constants.PREF_APP_SAVED_MAILS, savedMails).commit();
+        }
     }
 }

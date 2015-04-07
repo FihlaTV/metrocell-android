@@ -58,6 +58,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.text.DateFormat;
+import java.util.Date;
 
 
 public class MainActivity extends ActionBarActivity implements View.OnClickListener {
@@ -249,6 +251,16 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
         }
     }
 
+    private void sendReport(String mLac, String mCid) {
+        DateFormat simpleDateFormat = DateFormat.getDateTimeInstance();
+        long time = System.currentTimeMillis();
+        String data = String.format("Time: %s\r\nTimestamp: %s\r\nLAC: %s\r\nCID: %s",
+                simpleDateFormat.format(new Date(time)), time, mLac, mCid);
+
+        Reporter reporter = new Reporter(this);
+        reporter.execute(data);
+    }
+
     private class FindLocationInDB extends AsyncTask<Void, Void, Boolean> {
         private String mCid, mLac;
         private GeoPoint mCurrentPoint;
@@ -309,17 +321,8 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
                     mMapView.panTo(mCurrentPoint);
             } else {
                 setStatus(status.STATUS_NOT_FOUND);
-                sendReport();
+                sendReport(mLac, mCid);
             }
-        }
-
-        private void sendReport() {
-            final Bundle data = new Bundle();
-            data.putString(Constants.CELL_LAC, mLac);
-            data.putString(Constants.CELL_CID, mCid);
-
-            Reporter reporter = new Reporter();
-            reporter.execute(data);
         }
     }
 
