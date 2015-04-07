@@ -53,10 +53,10 @@ public class CurrentCellLocationOverlay extends Overlay {
         super(context, mapViewOverlays);
 
         Bitmap marker = BitmapFactory.decodeResource(context.getResources(), R.drawable.ic_location).copy(Bitmap.Config.ARGB_8888, true);
-//        Paint paint = new Paint();
+
         mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-//        int color = context.getResources().getColor(R.color.accent);
-        int color = Color.DKGRAY;
+//        int color = context.getResources().getColor(R.color.pink);
+        int color = Color.MAGENTA;
 //        ColorFilter filter = new LightingColorFilter(color, 1);
 //        mPaint.setColorFilter(filter);
         mPaint.setColor(color);

@@ -27,13 +27,12 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.graphics.PorterDuff;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBarActivity;
-import android.telephony.CellLocation;
-import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import android.telephony.gsm.GsmCellLocation;
 import android.view.Menu;
@@ -69,7 +68,7 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
     CurrentCellLocationOverlay mCurrentCellLocationOverlay;
 
     TelephonyManager mTelephonyManager;
-    CellListener mCellListener;
+//    CellListener mCellListener;
 
     private boolean mIsInterfaceLoaded = false;
     private SharedPreferences mSharedPreferences;
@@ -87,11 +86,12 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
         mFAB = (FloatingActionButton) findViewById(R.id.fab);
         mFAB.setOnClickListener(this);
         mProgressStatus = (ProgressBar) findViewById(R.id.pb_status);
+        mProgressStatus.getIndeterminateDrawable().setColorFilter(getResources().getColor(R.color.pink), PorterDuff.Mode.SRC_IN);
         mImageViewStatus = (ImageView) findViewById(R.id.iv_status);
         ViewHelper.setAlpha(mImageViewStatus, 0.8f);
 
         mTelephonyManager = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
-        mCellListener = new CellListener();
+//        mCellListener = new CellListener();
 
         PreferenceManager.setDefaultValues(this, R.xml.preferences, false);
         mSharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
@@ -166,7 +166,7 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
 
     @Override
     protected void onPause() {
-        mTelephonyManager.listen(mCellListener, PhoneStateListener.LISTEN_NONE);
+//        mTelephonyManager.listen(mCellListener, PhoneStateListener.LISTEN_NONE);
         super.onPause();
     }
 
@@ -179,7 +179,7 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
         else
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        mTelephonyManager.listen(mCellListener, PhoneStateListener.LISTEN_CELL_LOCATION);
+//        mTelephonyManager.listen(mCellListener, PhoneStateListener.LISTEN_CELL_LOCATION);
     }
 
     @Override
@@ -204,9 +204,30 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.fab:
-                
+                findCellLocation();
                 break;
         }
+    }
+
+    private void findCellLocation() {
+        setStatus(status.STATUS_SEARCHING);
+
+//            if (mTelephonyManager.getPhoneType() != TelephonyManager.PHONE_TYPE_GSM || !mIsInterfaceLoaded)
+        if (!mIsInterfaceLoaded)
+            return;
+
+        GsmCellLocation cellLocation = (GsmCellLocation) mTelephonyManager.getCellLocation();
+        File dbPath = new File(getExternalFilesDir(null), SQLiteDBHelper.DB_NAME);
+
+        if (!isCellLocationValid(cellLocation) || !checkOrCreateDatabase(dbPath))
+            return;
+
+        FindLocationInDB finder = new FindLocationInDB(cellLocation, dbPath);
+        finder.execute();
+    }
+
+    private boolean isCellLocationValid(GsmCellLocation cellLocation) {
+        return cellLocation != null && (cellLocation.getLac() > 0 && cellLocation.getCid() > 0);
     }
 
     private void setStatus(status status) {
@@ -225,6 +246,72 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
                 mImageViewStatus.setVisibility(View.VISIBLE);
                 mImageViewStatus.setImageResource(R.drawable.ic_success_green_24dp);
                 break;
+        }
+    }
+
+    private class FindLocationInDB extends AsyncTask<Void, Void, Boolean> {
+        private String mCid, mLac;
+        private File mDBPath;
+        private GeoPoint mCurrentPoint;
+
+        public FindLocationInDB(GsmCellLocation cellLocation, File dbPath) {
+            mCid = String.valueOf(cellLocation.getCid());
+            mLac = String.valueOf(cellLocation.getLac());
+            mDBPath = dbPath;
+        }
+
+        @Override
+        protected Boolean doInBackground(Void... params) {
+            boolean result = false;
+
+            SQLiteDatabase db = SQLiteDatabase.openDatabase(mDBPath.getPath(), null, 0);
+            String selection = SQLiteDBHelper.ROW_CID + " = ? and " + SQLiteDBHelper.ROW_LAC + " = ?";
+            Cursor data = db.query(SQLiteDBHelper.TABLE_POINTS, new String[]{SQLiteDBHelper.ROW_LATITUDE, SQLiteDBHelper.ROW_LONGITUDE}, selection,
+                    new String[]{mCid, mLac}, null, null, null);
+//                    new String[] {String.valueOf(382), String.valueOf(770)}, null, null, null);
+
+            if (data.moveToFirst()) {
+                GeoLineString geoPosition = new GeoLineString();
+                geoPosition.setCRS(GeoConstants.CRS_WGS84);
+                mCurrentPoint = new GeoPoint(data.getDouble(0), data.getDouble(1));
+                geoPosition.add(mCurrentPoint);
+
+                while (data.moveToNext()) {
+                    mCurrentPoint = new GeoPoint(data.getDouble(0), data.getDouble(1));
+                    geoPosition.add(mCurrentPoint);
+                }
+
+//                geoPosition.project(GeoConstants.CRS_WEB_MERCATOR);
+
+//                double currentLongitude = data.getDouble(0);
+//                double currentLatitude = data.getDouble(1);
+
+                mCurrentCellLocationOverlay.setVisibility(true);
+//                mCurrentCellLocationOverlay.setNewCellPoint(currentLongitude, currentLatitude);
+                mCurrentCellLocationOverlay.setNewCellLine(geoPosition);
+                result = true;
+            } else {
+                mCurrentCellLocationOverlay.setVisibility(false);
+            }
+
+            data.close();
+            db.close();
+
+            return result;
+        }
+
+        @Override
+        protected void onPostExecute(Boolean result) {
+            super.onPostExecute(result);
+
+            if (result != null && result) {
+                setStatus(status.STATUS_FOUND);
+
+                if (mCurrentPoint != null)
+                    mMapView.panTo(mCurrentPoint);
+            } else {
+                setStatus(status.STATUS_NOT_FOUND);
+            }
         }
     }
 
@@ -266,58 +353,6 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
 
             loadInterface();
             mProgressDialog.dismiss();
-        }
-    }
-
-    private class CellListener extends PhoneStateListener {
-        @Override
-        public void onCellLocationChanged(CellLocation location) {
-            setStatus(status.STATUS_SEARCHING);
-
-            if (mTelephonyManager.getPhoneType() != TelephonyManager.PHONE_TYPE_GSM || !mIsInterfaceLoaded)
-                return;
-
-            GsmCellLocation cellLocation = (GsmCellLocation) mTelephonyManager.getCellLocation();
-            File dbPath = new File(getExternalFilesDir(null), SQLiteDBHelper.DB_NAME);
-
-            if (!isCellLocationValid(cellLocation) || !checkOrCreateDatabase(dbPath))
-                return;
-
-            SQLiteDatabase db = SQLiteDatabase.openDatabase(dbPath.getPath(), null, 0);
-            String selection = SQLiteDBHelper.ROW_CID + " = ? and " + SQLiteDBHelper.ROW_LAC + " = ?";
-            Cursor data = db.query(SQLiteDBHelper.TABLE_POINTS, new String[]{SQLiteDBHelper.ROW_LATITUDE, SQLiteDBHelper.ROW_LONGITUDE}, selection,
-                    new String[]{String.valueOf(cellLocation.getCid()), String.valueOf(cellLocation.getLac())}, null, null, null);
-//                    new String[] {String.valueOf(382), String.valueOf(770)}, null, null, null);
-
-            if (data.moveToFirst()) {
-                GeoLineString geoPosition = new GeoLineString();
-                geoPosition.setCRS(GeoConstants.CRS_WGS84);
-                geoPosition.add(new GeoPoint(data.getDouble(0), data.getDouble(1)));
-
-                while (data.moveToNext()) {
-                    geoPosition.add(new GeoPoint(data.getDouble(0), data.getDouble(1)));
-                }
-
-//                geoPosition.project(GeoConstants.CRS_WEB_MERCATOR);
-
-//                double currentLongitude = data.getDouble(0);
-//                double currentLatitude = data.getDouble(1);
-
-                mCurrentCellLocationOverlay.setVisibility(true);
-//                mCurrentCellLocationOverlay.setNewCellPoint(currentLongitude, currentLatitude);
-                mCurrentCellLocationOverlay.setNewCellLine(geoPosition);
-                setStatus(status.STATUS_FOUND);
-            } else {
-                mCurrentCellLocationOverlay.setVisibility(false);
-                setStatus(status.STATUS_NOT_FOUND);
-            }
-
-            data.close();
-            db.close();
-        }
-
-        private boolean isCellLocationValid(GsmCellLocation cellLocation) {
-            return cellLocation != null && (cellLocation.getLac() > 0 && cellLocation.getCid() > 0);
         }
     }
 }
