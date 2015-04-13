@@ -24,6 +24,7 @@ package com.nextgis.metrocell;
 import android.annotation.TargetApi;
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
@@ -51,6 +52,7 @@ import com.nextgis.maplib.util.GeoConstants;
 import com.nextgis.maplibui.MapViewOverlays;
 import com.nextgis.maplibui.util.SettingsConstantsUI;
 import com.nextgis.metrocell.util.Constants;
+import com.nextgis.metrocell.util.ConstantsSecured;
 import com.nineoldandroids.view.ViewHelper;
 
 import java.io.File;
@@ -63,7 +65,7 @@ import java.util.Date;
 
 
 public class MainActivity extends ActionBarActivity implements View.OnClickListener {
-    enum status {STATUS_SEARCHING, STATUS_NOT_FOUND, STATUS_FOUND}
+    enum STATUS {STATUS_SEARCHING, STATUS_NOT_FOUND, STATUS_FOUND}
 
     private MapViewOverlays mMapView;
     CurrentCellLocationOverlay mCurrentCellLocationOverlay;
@@ -198,6 +200,9 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
             case R.id.action_settings:
                 ((GISApplication) getApplication()).showSettings();
                 return true;
+            case R.id.action_report:
+                sendReport();
+                return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
@@ -213,7 +218,7 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
     }
 
     private void findCellLocation() {
-        setStatus(status.STATUS_SEARCHING);
+        setStatus(STATUS.STATUS_SEARCHING);
 
 //            if (mTelephonyManager.getPhoneType() != TelephonyManager.PHONE_TYPE_GSM || !mIsInterfaceLoaded)
         if (!mIsInterfaceLoaded)
@@ -232,7 +237,7 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
         return cellLocation != null && (cellLocation.getLac() > 0 && cellLocation.getCid() > 0);
     }
 
-    private void setStatus(status status) {
+    private void setStatus(STATUS status) {
         switch (status) {
             case STATUS_SEARCHING:
                 mProgressStatus.setVisibility(View.VISIBLE);
@@ -251,14 +256,17 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
         }
     }
 
-    private void sendReport(String mLac, String mCid) {
-        DateFormat simpleDateFormat = DateFormat.getDateTimeInstance();
-        long time = System.currentTimeMillis();
-        String data = String.format("Time: %s\r\nTimestamp: %s\r\nLAC: %s\r\nCID: %s",
-                simpleDateFormat.format(new Date(time)), time, mLac, mCid);
+    private void sendReport() {
+        Intent intent = new Intent(Intent.ACTION_SEND);
+        intent.setType("plain/text");
+        intent.putExtra(Intent.EXTRA_EMAIL, ConstantsSecured.EMAIL_TO);
+        intent.putExtra(Intent.EXTRA_SUBJECT, "Metrocell report");
+        intent.putExtra(Intent.EXTRA_TEXT, mSharedPreferences.getString(Constants.PREF_APP_SAVED_MAILS, "No last known data"));
 
-        Reporter reporter = new Reporter(this);
-        reporter.execute(data);
+        startActivity(Intent.createChooser(intent, getString(R.string.action_report)));
+
+//        Reporter reporter = new Reporter(this);
+//        reporter.execute(data);
     }
 
     private class FindLocationInDB extends AsyncTask<Void, Void, Boolean> {
@@ -313,16 +321,24 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
         @Override
         protected void onPostExecute(Boolean result) {
             super.onPostExecute(result);
+            String status = "Not found";
 
             if (result != null && result) {
-                setStatus(status.STATUS_FOUND);
+                setStatus(STATUS.STATUS_FOUND);
+                status = "Found";
 
                 if (mCurrentPoint != null)
                     mMapView.panTo(mCurrentPoint);
             } else {
-                setStatus(status.STATUS_NOT_FOUND);
-                sendReport(mLac, mCid);
+                setStatus(STATUS.STATUS_NOT_FOUND);
             }
+
+            DateFormat simpleDateFormat = DateFormat.getDateTimeInstance();
+            long time = System.currentTimeMillis();
+            String data = String.format("\r\n\r\nStatus: %s\r\nTime: %s\r\nTimestamp: %s\r\nLAC: %s\r\nCID: %s",
+                    status, simpleDateFormat.format(new Date(time)), time, mLac, mCid);
+
+            mSharedPreferences.edit().putString(Constants.PREF_APP_SAVED_MAILS, data).commit();
         }
     }
 

@@ -47,7 +47,8 @@ public class Reporter extends AsyncTask<String, Void, Boolean> {
             return true;
 
         Mail mail = new Mail(ConstantsSecured.EMAIL_FROM, ConstantsSecured.EMAIL_PASS);
-        mail.setTo(new String[]{ConstantsSecured.EMAIL_TO});
+//        mail.setTo(new String[]{ConstantsSecured.EMAIL_TO});
+        mail.setTo(ConstantsSecured.EMAIL_TO);
         mail.setFrom(ConstantsSecured.EMAIL_FROM);
         mail.setSubject(String.format("Not found"));
         mail.setBody(mData);

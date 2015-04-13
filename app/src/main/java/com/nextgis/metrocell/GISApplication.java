@@ -171,6 +171,8 @@ public class GISApplication extends Application implements IGISApplication {
             switch (savedVersionCode) {
                 case 0:
                     FileUtil.deleteRecursive(getDBPath());
+                case 2:
+                    mSharedPreferences.edit().remove(Constants.PREF_APP_SAVED_MAILS).commit();
                 default:
                     break;
             }

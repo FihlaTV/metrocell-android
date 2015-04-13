@@ -22,6 +22,8 @@
 <resources>
     <string name="app_name">Metrocell</string>
 
+    <string name="action_report">Отправить отчет</string>
+
     <string name="action_settings">Настройки</string>
     <string name="settings_keep_screen_on">Не выключать экран</string>
     <string name="settings_keep_screen_on_sum">На карте экран всегда включен</string>
