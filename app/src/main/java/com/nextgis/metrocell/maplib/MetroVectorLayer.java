@@ -29,7 +29,6 @@ import android.graphics.Color;
 
 import com.nextgis.maplib.datasource.Feature;
 import com.nextgis.maplib.datasource.Field;
-import com.nextgis.maplib.datasource.Geo;
 import com.nextgis.maplib.datasource.GeoGeometry;
 import com.nextgis.maplib.datasource.GeoGeometryFactory;
 import com.nextgis.maplib.datasource.GeoLineString;
@@ -39,6 +38,7 @@ import com.nextgis.maplib.display.SimplePolygonStyle;
 import com.nextgis.maplib.map.MapBase;
 import com.nextgis.maplib.map.MapContentProviderHelper;
 import com.nextgis.maplib.map.VectorLayer;
+import com.nextgis.maplib.util.Constants;
 import com.nextgis.maplib.util.VectorCacheItem;
 
 import org.json.JSONArray;
@@ -82,8 +82,7 @@ public class MetroVectorLayer extends VectorLayer {
     }
 
     @Override
-    public String createFromGeoJSON(JSONObject geoJSONObject)
-    {
+    public String createFromGeoJSON(JSONObject geoJSONObject) {
         try {
             //check crs
             boolean isWGS84 = true; //if no crs tag - WGS84 CRS
@@ -96,13 +95,16 @@ public class MetroVectorLayer extends VectorLayer {
                 JSONObject crsPropertiesJSONObject =
                         crsJSONObject.getJSONObject(GEOJSON_PROPERTIES);
                 String crsName = crsPropertiesJSONObject.getString(GEOJSON_NAME);
-                if (crsName.equals("urn:ogc:def:crs:OGC:1.3:CRS84")) { // WGS84
-                    isWGS84 = true;
-                } else if (crsName.equals("urn:ogc:def:crs:EPSG::3857") ||
-                        crsName.equals("EPSG:3857")) { //Web Mercator
-                    isWGS84 = false;
-                } else {
-                    return mContext.getString(com.nextgis.maplib.R.string.error_crs_unsupported);
+                switch (crsName) {
+                    case "urn:ogc:def:crs:OGC:1.3:CRS84":  // WGS84
+                        isWGS84 = true;
+                        break;
+                    case "urn:ogc:def:crs:EPSG::3857":
+                    case "EPSG:3857":  //Web Mercator
+                        isWGS84 = false;
+                        break;
+                    default:
+                        return mContext.getString(com.nextgis.maplib.R.string.error_crs_unsupported);
                 }
             }
 
@@ -127,7 +129,7 @@ public class MetroVectorLayer extends VectorLayer {
 
                 if (geometryType == GTNone) {
                     geometryType = geometry.getType();
-                } else if (!Geo.isGeometryTypeSame(geometryType, geometry.getType())) {
+                } else if (geometryType != geometry.getType()) {
                     //skip different geometry type
                     continue;
                 }
@@ -173,6 +175,7 @@ public class MetroVectorLayer extends VectorLayer {
                         for (int j = 0; j < fields.size(); j++) {
                             if (fields.get(j).getName().equals(key)) {
                                 fieldIndex = j;
+                                break;
                             }
                         }
                         if (fieldIndex == NOT_FOUND) { //add new field
@@ -195,39 +198,40 @@ public class MetroVectorLayer extends VectorLayer {
 
     @Override
     public void reloadCache()
-            throws SQLiteException
-    {
+            throws SQLiteException {
         //load vector cache
         MapContentProviderHelper map = (MapContentProviderHelper) MapBase.getInstance();
         SQLiteDatabase db = map.getDatabase(false);
-        String[] columns = new String[] {FIELD_ID, FIELD_GEOM, FIELD_COLOR};
+        String[] columns = new String[]{Constants.FIELD_ID, Constants.FIELD_GEOM, FIELD_COLOR};
         Cursor cursor = db.query(mPath.getName(), columns, null, null, null, null, null);
 
-        if (null != cursor && cursor.moveToFirst()) {
-            do {
-                try {
-                    GeoGeometry geoGeometry = GeoGeometryFactory.fromBlob(cursor.getBlob(1));
-                    if (null != geoGeometry) {
-                        if (geoGeometry instanceof GeoLineString) {
-                            int color = MetroLineStyle.DEFAULT_COLOR;
+        if (null != cursor) {
+            if (cursor.moveToFirst()) {
+                do {
+                    try {
+                        GeoGeometry geoGeometry = GeoGeometryFactory.fromBlob(cursor.getBlob(1));
+                        if (null != geoGeometry) {
+                            if (geoGeometry instanceof GeoLineString) {
+                                int color = MetroLineStyle.DEFAULT_COLOR;
 
-                            try {
-                                color = Color.parseColor(cursor.getString(2));
-                            } catch (IllegalArgumentException ignored) {
+                                try {
+                                    color = Color.parseColor(cursor.getString(2));
+                                } catch (IllegalArgumentException ignored) {
 
+                                }
+
+                                geoGeometry = new MetroGeoLineString((GeoLineString) geoGeometry, color);
                             }
 
-                            geoGeometry = new MetroGeoLineString((GeoLineString) geoGeometry, color);
+                            int nId = cursor.getInt(0);
+                            mExtents.merge(geoGeometry.getEnvelope());
+                            mVectorCacheItems.add(new VectorCacheItem(geoGeometry, nId));
                         }
-
-                        int nId = cursor.getInt(0);
-                        mExtents.merge(geoGeometry.getEnvelope());
-                        mVectorCacheItems.add(new VectorCacheItem(geoGeometry, nId));
+                    } catch (IOException | ClassNotFoundException e) {
+                        e.printStackTrace();
                     }
-                } catch (IOException | ClassNotFoundException e) {
-                    e.printStackTrace();
-                }
-            } while (cursor.moveToNext());
+                } while (cursor.moveToNext());
+            }
 
             cursor.close();
         }
@@ -238,9 +242,7 @@ public class MetroVectorLayer extends VectorLayer {
         switch (mGeometryType) {
             case GTPoint:
             case GTMultiPoint:
-                mRenderer = new SimpleFeatureRenderer(
-                        this, new SimpleMarkerStyle(
-                        Color.RED, Color.BLACK, 6, SimpleMarkerStyle.MarkerStyleCircle));
+                mRenderer = new SimpleFeatureRenderer(this, new SimpleMarkerStyle(Color.RED, Color.BLACK, 6, SimpleMarkerStyle.MarkerStyleCircle));
                 break;
             case GTLineString:
             case GTMultiLineString:
