@@ -100,6 +100,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         PreferenceManager.setDefaultValues(this, R.xml.preferences, false);
         mSharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        mSharedPreferences.edit().remove(Constants.PREF_APP_SAVED_MAILS).commit();
 
         if (mSharedPreferences.getBoolean(Constants.PREF_APP_FIRST_RUN, true)) {
             new FirstRunTask(this).execute();
@@ -301,6 +302,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     activeCell = gsmInfo;
                 }
             }
+
+            mSharedPreferences.edit().putString(Constants.PREF_APP_SAVED_MAILS, where).commit();
 
             if (activeCell == null || activeCell.getLac() == -1 || activeCell.getCid() == -1 ||
                     activeCell.getLac() == 2147483647 || activeCell.getCid() == 2147483647)
