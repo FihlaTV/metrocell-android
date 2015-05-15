@@ -32,6 +32,7 @@ import android.text.TextUtils;
 import android.widget.Toast;
 
 import com.nextgis.maplib.api.IGISApplication;
+import com.nextgis.maplib.api.ILayer;
 import com.nextgis.maplib.location.GpsEventSource;
 import com.nextgis.maplib.map.MapDrawable;
 import com.nextgis.maplib.map.RemoteTMSLayer;
@@ -54,6 +55,7 @@ public class GISApplication extends Application implements IGISApplication {
     private static final String AUTHORITY = "com.nextgis.metrocell";
     private static final String MAP_NAME = "default";
     private static final String MAP_EXT = ".ngm";
+    private static final String LAYER_LINES_NAME = "Metro lines";
 
     private MapDrawable mMap;
     private GpsEventSource mGpsEventSource;
@@ -100,7 +102,7 @@ public class GISApplication extends Application implements IGISApplication {
                 }
 
                 MetroVectorLayer layer = new MetroVectorLayer(mMap.getContext(), mMap.createLayerStorage());
-                layer.setName("Metro lines");
+                layer.setName(LAYER_LINES_NAME);
                 layer.setVisible(true);
 
                 JSONObject geoJSONObject = new JSONObject(responseStrBuilder.toString());
@@ -171,8 +173,18 @@ public class GISApplication extends Application implements IGISApplication {
             switch (savedVersionCode) {
                 case 0:
                     FileUtil.deleteRecursive(getDBPath());
+                    break;
                 case 2:
+                case 3:
                     mSharedPreferences.edit().remove(Constants.PREF_APP_SAVED_MAILS).commit();
+                    FileUtil.deleteRecursive(getDBPath());
+
+                    ILayer metroLines = getMap().getLayerByName(LAYER_LINES_NAME);
+
+                    if (metroLines != null)
+                        getMap().moveLayer(0, metroLines);
+                    else
+                        createMetroLinesLayer();
                 default:
                     break;
             }

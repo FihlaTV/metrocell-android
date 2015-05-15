@@ -22,11 +22,11 @@
 package com.nextgis.metrocell.util;
 
 public interface Constants {
-    public final static String PREF_APP_VERSION     = "app_version";
-    public final static String PREF_APP_FIRST_RUN   = "is_first_run";
-    public final static String PREF_APP_SAVED_MAILS = "saved_mails";
+    String TAG = "metrocell";
+    String CSV_SEPARATOR = ";";
+    int UNDEFINED = -1;
 
-    public final static String CELL_TIME  = "time";
-    public final static String CELL_LAC   = "lac";
-    public final static String CELL_CID   = "cid";
+    String PREF_APP_VERSION = "app_version";
+    String PREF_APP_FIRST_RUN = "is_first_run";
+    String PREF_APP_SAVED_MAILS = "saved_mails";
 }
