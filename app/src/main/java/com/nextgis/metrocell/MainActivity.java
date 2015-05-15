@@ -33,9 +33,10 @@ import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.support.v7.app.ActionBarActivity;
+import android.support.v7.app.AppCompatActivity;
 import android.telephony.TelephonyManager;
-import android.telephony.gsm.GsmCellLocation;
+import android.text.TextUtils;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -60,16 +61,16 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.text.DateFormat;
-import java.util.Date;
+import java.util.ArrayList;
 
 
-public class MainActivity extends ActionBarActivity implements View.OnClickListener {
+public class MainActivity extends AppCompatActivity implements View.OnClickListener {
     enum STATUS {STATUS_SEARCHING, STATUS_NOT_FOUND, STATUS_FOUND}
 
     private MapViewOverlays mMapView;
     CurrentCellLocationOverlay mCurrentCellLocationOverlay;
 
+    private CellEngine mCellEngine;
     TelephonyManager mTelephonyManager;
 //    CellListener mCellListener;
 
@@ -93,6 +94,7 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
         mImageViewStatus = (ImageView) findViewById(R.id.iv_status);
         ViewHelper.setAlpha(mImageViewStatus, 0.8f);
 
+        mCellEngine = new CellEngine(this);
         mTelephonyManager = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
 //        mCellListener = new CellListener();
 
@@ -172,12 +174,14 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
     @Override
     protected void onPause() {
 //        mTelephonyManager.listen(mCellListener, PhoneStateListener.LISTEN_NONE);
+        mCellEngine.onPause();
         super.onPause();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        mCellEngine.onResume();
 
         if (mSharedPreferences.getBoolean(SettingsConstantsUI.KEY_PREF_KEEPSCREENON, true))
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -221,20 +225,11 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
         setStatus(STATUS.STATUS_SEARCHING);
 
 //            if (mTelephonyManager.getPhoneType() != TelephonyManager.PHONE_TYPE_GSM || !mIsInterfaceLoaded)
-        if (!mIsInterfaceLoaded)
+        if (!mIsInterfaceLoaded || !checkOrCreateDatabase())
             return;
 
-        GsmCellLocation cellLocation = (GsmCellLocation) mTelephonyManager.getCellLocation();
-
-        if (!isCellLocationValid(cellLocation) || !checkOrCreateDatabase())
-            return;
-
-        FindLocationInDB finder = new FindLocationInDB(cellLocation);
+        FindLocationInDB finder = new FindLocationInDB();
         finder.execute();
-    }
-
-    private boolean isCellLocationValid(GsmCellLocation cellLocation) {
-        return cellLocation != null && (cellLocation.getLac() > 0 && cellLocation.getCid() > 0);
     }
 
     private void setStatus(STATUS status) {
@@ -270,46 +265,128 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
     }
 
     private class FindLocationInDB extends AsyncTask<Void, Void, Boolean> {
-        private String mCid, mLac;
         private GeoPoint mCurrentPoint;
-
-        public FindLocationInDB(GsmCellLocation cellLocation) {
-            mCid = String.valueOf(cellLocation.getCid());
-            mLac = String.valueOf(cellLocation.getLac());
-        }
+        private GeoLineString mGeoPosition;
 
         @Override
         protected Boolean doInBackground(Void... params) {
             boolean result = false;
+            mCurrentCellLocationOverlay.setVisibility(false);
+            mGeoPosition = new GeoLineString();
+            mGeoPosition.setCRS(GeoConstants.CRS_WGS84);
+
+            ArrayList<CellEngine.GSMInfo> gsmInfoArray = mCellEngine.getGSMInfoArray();
+            CellEngine.GSMInfo activeCell = null;
 
             SQLiteDatabase db = SQLiteDatabase.openDatabase(((GISApplication) getApplication()).getDBPath().getPath(), null, 0);
-            String selection = SQLiteDBHelper.ROW_CID + " = ? and " + SQLiteDBHelper.ROW_LAC + " = ?";
-            Cursor data = db.query(SQLiteDBHelper.TABLE_POINTS, new String[]{SQLiteDBHelper.ROW_LATITUDE, SQLiteDBHelper.ROW_LONGITUDE}, selection,
-                    new String[]{mCid, mLac}, null, null, null);
-//                    new String[] {String.valueOf(382), String.valueOf(770)}, null, null, null);
+            ArrayList<String> args = new ArrayList<>();
+            String selection, where, payload = String.format("select %s, %s from %s where %s = ? and %s = ?",
+                    SQLiteDBHelper.ROW_SEG_BEGIN, SQLiteDBHelper.ROW_SEG_END, SQLiteDBHelper.TABLE_POINTS, SQLiteDBHelper.ROW_LAC, SQLiteDBHelper.ROW_CID);
+
+            selection = payload;
+            where = "\r\n";
+
+            for (CellEngine.GSMInfo gsmInfo : gsmInfoArray) {
+                if (args.size() > 0)
+                    selection += " intersect " + payload;
+
+                args.add(gsmInfo.getLac() + "");
+                args.add(gsmInfo.getCid() + "");
+
+                String active = gsmInfo.isActive() ? "1" : gsmInfoArray.get(0).getMcc() + "-" + gsmInfoArray.get(0).getMnc() + "-"
+                        + gsmInfoArray.get(0).getLac() + "-" + gsmInfoArray.get(0).getCid();
+                where += "\r\n" + CellEngine.getItem(gsmInfo, active, "", "", "");
+
+                if (gsmInfo.isActive()) {
+                    activeCell = gsmInfo;
+                }
+            }
+
+            if (activeCell == null || activeCell.getLac() == -1 || activeCell.getCid() == -1 ||
+                    activeCell.getLac() == 2147483647 || activeCell.getCid() == 2147483647)
+                return false;
+
+            Cursor item, data = db.rawQuery(selection, args.toArray(new String[args.size()]));
+            Log.d(Constants.TAG, "sql intersections query: " + selection);
+            Log.d(Constants.TAG, "sql intersections query args: " + TextUtils.join(",", args));
 
             if (data.moveToFirst()) {
-                GeoLineString geoPosition = new GeoLineString();
-                geoPosition.setCRS(GeoConstants.CRS_WGS84);
-                mCurrentPoint = new GeoPoint(data.getDouble(0), data.getDouble(1));
-                geoPosition.add(mCurrentPoint);
+                Log.d(Constants.TAG, "found bts intersections");
+                ArrayList<MetroSegment> segmentsIds = new ArrayList<>();
 
-                while (data.moveToNext()) {
-                    mCurrentPoint = new GeoPoint(data.getDouble(0), data.getDouble(1));
-                    geoPosition.add(mCurrentPoint);
+                do {
+                    segmentsIds.add(new MetroSegment(data.getInt(0), data.getInt(1)));
+                } while (data.moveToNext());
+
+                data.close();
+
+                for (MetroSegment segment : segmentsIds) {
+                    selection = "select max(mins), min(maxs) from (select max(ration) as maxs, min(ration) as mins from " + SQLiteDBHelper.TABLE_POINTS;
+                    where = String.format(" where %s = ? and %s = ? and (", SQLiteDBHelper.ROW_SEG_BEGIN, SQLiteDBHelper.ROW_SEG_END);
+                    payload = String.format("(%s = ? and %s = ?)", SQLiteDBHelper.ROW_LAC, SQLiteDBHelper.ROW_CID);
+                    args.clear();
+                    args.add(segment.getBeginSeg() + "");
+                    args.add(segment.getEndSeg() + "");
+
+                    for (CellEngine.GSMInfo gsmInfo : gsmInfoArray) {
+                        if (args.size() >= 4)
+                            where += " or ";
+
+                        where += payload;
+                        args.add(gsmInfo.getLac() + "");
+                        args.add(gsmInfo.getCid() + "");
+                    }
+
+                    where += ")";
+                    selection += where + " group by lac, cid)";
+
+                    data = db.rawQuery(selection, args.toArray(new String[args.size()]));
+
+                    if (data.moveToFirst()) {
+                        Log.d(Constants.TAG, "segment " + segment.getBeginSeg() + "-" + segment.getEndSeg() +
+                                " min: " + data.getString(0) + " max: " + data.getString(1));
+
+                        args.add(data.getString(0));
+                        args.add(data.getString(1));
+                        selection = String.format("select %s, %s from %s%s and %s between ? and ?",
+                                SQLiteDBHelper.ROW_LATITUDE, SQLiteDBHelper.ROW_LONGITUDE, SQLiteDBHelper.TABLE_POINTS, where, SQLiteDBHelper.ROW_RATIO);
+                        item = db.rawQuery(selection, args.toArray(new String[args.size()]));
+
+                        if (item.moveToFirst()) {
+                            do {
+                                mCurrentPoint = new GeoPoint(item.getDouble(0), item.getDouble(1));
+                                mGeoPosition.add(mCurrentPoint);
+                            } while (item.moveToNext());
+
+                            result = true;
+                        }
+
+                        item.close();
+                    }
+
+                    data.close();
+                }
+            } else
+                Log.d(Constants.TAG, "no bts intersections");
+
+            if (mGeoPosition.getPointCount() == 0) {
+                selection = SQLiteDBHelper.ROW_CID + " = ? and " + SQLiteDBHelper.ROW_LAC + " = ?";
+                // and " + SQLiteDBHelper.ROW_RATIO + " between 0.1 and 0.9";
+                data = db.query(SQLiteDBHelper.TABLE_POINTS, new String[]{SQLiteDBHelper.ROW_LATITUDE, SQLiteDBHelper.ROW_LONGITUDE},
+                        selection, new String[]{activeCell.getCid() + "", activeCell.getLac() + ""}, null, null, null);
+
+                if (data.moveToFirst()) {
+                    Log.d(Constants.TAG, "found active bts only lac: " + activeCell.getLac() + " cid: " + activeCell.getCid());
+
+                    do {
+                        mCurrentPoint = new GeoPoint(data.getDouble(0), data.getDouble(1));
+                        mGeoPosition.add(mCurrentPoint);
+                    } while (data.moveToNext());
+
+                    result = true;
                 }
 
-//                geoPosition.project(GeoConstants.CRS_WEB_MERCATOR);
-
-//                double currentLongitude = data.getDouble(0);
-//                double currentLatitude = data.getDouble(1);
-
-                mCurrentCellLocationOverlay.setVisibility(true);
-//                mCurrentCellLocationOverlay.setNewCellPoint(currentLongitude, currentLatitude);
-                mCurrentCellLocationOverlay.setNewCellLine(geoPosition);
-                result = true;
-            } else {
-                mCurrentCellLocationOverlay.setVisibility(false);
+                data.close();
             }
 
             data.close();
@@ -321,24 +398,34 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
         @Override
         protected void onPostExecute(Boolean result) {
             super.onPostExecute(result);
-            String status = "Not found";
 
             if (result != null && result) {
+                mCurrentCellLocationOverlay.setVisibility(true);
+                mCurrentCellLocationOverlay.setNewCellLine(mGeoPosition);
                 setStatus(STATUS.STATUS_FOUND);
-                status = "Found";
 
                 if (mCurrentPoint != null)
                     mMapView.panTo(mCurrentPoint);
             } else {
                 setStatus(STATUS.STATUS_NOT_FOUND);
             }
+        }
+    }
 
-            DateFormat simpleDateFormat = DateFormat.getDateTimeInstance();
-            long time = System.currentTimeMillis();
-            String data = String.format("\r\n\r\nStatus: %s\r\nTime: %s\r\nTimestamp: %s\r\nLAC: %s\r\nCID: %s",
-                    status, simpleDateFormat.format(new Date(time)), time, mLac, mCid);
+    private class MetroSegment {
+        public int getBeginSeg() {
+            return mBeginSeg;
+        }
 
-            mSharedPreferences.edit().putString(Constants.PREF_APP_SAVED_MAILS, data).commit();
+        public int getEndSeg() {
+            return mEndSeg;
+        }
+
+        private int mBeginSeg = -1, mEndSeg = -1;
+
+        public MetroSegment(int beginSeg, int endSeg) {
+            mBeginSeg = beginSeg;
+            mEndSeg = endSeg;
         }
     }
 
