@@ -197,8 +197,7 @@ public class MetroVectorLayer extends VectorLayer {
     }
 
     @Override
-    public void reloadCache()
-            throws SQLiteException {
+    public void reloadCache() throws SQLiteException {
         //load vector cache
         MapContentProviderHelper map = (MapContentProviderHelper) MapBase.getInstance();
         SQLiteDatabase db = map.getDatabase(false);
@@ -256,4 +255,10 @@ public class MetroVectorLayer extends VectorLayer {
                 mRenderer = null;
         }
     }
+
+    @Override
+    protected void setRenderer(JSONObject jsonObject) throws JSONException {
+        setDefaultRenderer();
+    }
+
 }

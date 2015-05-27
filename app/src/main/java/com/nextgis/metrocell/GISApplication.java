@@ -21,6 +21,7 @@
 
 package com.nextgis.metrocell;
 
+import android.accounts.Account;
 import android.app.Application;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -147,6 +148,26 @@ public class GISApplication extends Application implements IGISApplication {
     }
 
     @Override
+    public Account getAccount(String accountName) {
+        return null;
+    }
+
+    @Override
+    public String getAccountUrl(Account account) {
+        return null;
+    }
+
+    @Override
+    public String getAccountLogin(Account account) {
+        return null;
+    }
+
+    @Override
+    public String getAccountPassword(Account account) {
+        return null;
+    }
+
+    @Override
     public GpsEventSource getGpsEventSource() {
         return mGpsEventSource;
     }
@@ -172,6 +193,7 @@ public class GISApplication extends Application implements IGISApplication {
 
             switch (savedVersionCode) {
                 case 0:
+                case 4:
                     FileUtil.deleteRecursive(getDBPath());
                     break;
                 case 2:
