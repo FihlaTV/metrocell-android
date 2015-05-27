@@ -29,13 +29,14 @@ import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.graphics.PorterDuff;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.telephony.TelephonyManager;
-import android.text.TextUtils;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -108,6 +109,22 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         loadInterface();
+
+        try {
+            File outputFile = new File(Environment.getExternalStorageDirectory(), "Metrocell");
+
+            if (outputFile.exists() || outputFile.mkdir()) {
+                outputFile = new File(outputFile, "log_" + System.currentTimeMillis() + ".txt");
+                Runtime.getRuntime().exec("logcat -c");
+                Runtime.getRuntime().exec("logcat -s -v time -f " + outputFile.getAbsolutePath() + " " + Constants.TAG);
+
+                Intent intent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(outputFile));
+                sendBroadcast(intent);	// update media for MTP
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     private void loadInterface() {
@@ -271,7 +288,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         @Override
         protected Boolean doInBackground(Void... params) {
-            boolean result = false;
+            Log.d(Constants.TAG, "==========new search==========");
+            boolean invalid = false, result = false;
             mCurrentCellLocationOverlay.setVisibility(false);
             mGeoPosition = new GeoLineString();
             mGeoPosition.setCRS(GeoConstants.CRS_WGS84);
@@ -281,13 +299,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             SQLiteDatabase db = SQLiteDatabase.openDatabase(((GISApplication) getApplication()).getDBPath().getPath(), null, 0);
             ArrayList<String> args = new ArrayList<>();
-            String selection, where, payload = String.format("select %s, %s from %s where %s = ? and %s = ?",
+            String selection, where, payload = String.format("select distinct %s, %s from %s where %s = ? and %s = ?",
                     SQLiteDBHelper.ROW_SEG_BEGIN, SQLiteDBHelper.ROW_SEG_END, SQLiteDBHelper.TABLE_POINTS, SQLiteDBHelper.ROW_LAC, SQLiteDBHelper.ROW_CID);
 
             selection = payload;
             where = "\r\n";
 
             for (CellEngine.GSMInfo gsmInfo : gsmInfoArray) {
+                if (invalid)
+                    continue;
+
                 if (args.size() > 0)
                     selection += " intersect " + payload;
 
@@ -301,6 +322,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 if (gsmInfo.isActive()) {
                     activeCell = gsmInfo;
                 }
+
+                if (gsmInfo.getCid() == -1 && gsmInfo.getLac() == -1)
+                    invalid = true;
             }
 
             mSharedPreferences.edit().putString(Constants.PREF_APP_SAVED_MAILS, where).commit();
@@ -310,8 +334,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 return false;
 
             Cursor item, data = db.rawQuery(selection, args.toArray(new String[args.size()]));
-            Log.d(Constants.TAG, "sql intersections query: " + selection);
-            Log.d(Constants.TAG, "sql intersections query args: " + TextUtils.join(",", args));
+            Log.d(Constants.TAG, "sql intersections query: " + substituteArgs(selection, args));
 
             if (data.moveToFirst()) {
                 Log.d(Constants.TAG, "found bts intersections");
@@ -348,12 +371,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     if (data.moveToFirst()) {
                         Log.d(Constants.TAG, "segment " + segment.getBeginSeg() + "-" + segment.getEndSeg() +
                                 " min: " + data.getString(0) + " max: " + data.getString(1));
+                        Log.d(Constants.TAG, "sql min/max query: " + substituteArgs(selection, args));
 
                         args.add(data.getString(0));
                         args.add(data.getString(1));
                         selection = String.format("select %s, %s from %s%s and %s between ? and ?",
                                 SQLiteDBHelper.ROW_LATITUDE, SQLiteDBHelper.ROW_LONGITUDE, SQLiteDBHelper.TABLE_POINTS, where, SQLiteDBHelper.ROW_RATIO);
                         item = db.rawQuery(selection, args.toArray(new String[args.size()]));
+                        Log.d(Constants.TAG, "sql x/y query: " + substituteArgs(selection, args));
 
                         if (item.moveToFirst()) {
                             do {
@@ -413,6 +438,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 setStatus(STATUS.STATUS_NOT_FOUND);
             }
         }
+    }
+
+    private String substituteArgs(String selection, ArrayList<String> args) {
+        StringBuilder sb = new StringBuilder(selection);
+
+        for (int i = 0; i < args.size(); i++)
+            sb.replace(sb.indexOf("?"), sb.indexOf("?") + 1, args.get(i));
+
+        return sb.toString();
     }
 
     private class MetroSegment {
