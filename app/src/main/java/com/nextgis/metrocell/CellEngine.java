@@ -426,16 +426,18 @@ public class CellEngine {
                 case TelephonyManager.NETWORK_TYPE_HSDPA:
                 case TelephonyManager.NETWORK_TYPE_HSUPA:
                 case TelephonyManager.NETWORK_TYPE_HSPAP:
-                    if (lac <= LOW_BOUND || lac >= MAX_2G_LAC_CID)
-                        this.lac = -1;
-
-                    if (cid <= LOW_BOUND || cid >= MAX_3G_CID)
-                        this.cid = -1;
-
-                    if (psc <= LOW_BOUND || psc >= MAX_PSC)
-                        this.psc = -1;
-                    break;
                 default:
+                    if (lac <= LOW_BOUND || lac >= MAX_2G_LAC_CID) {
+                            this.lac = -1;
+                    }
+
+                    if (cid <= LOW_BOUND || cid >= MAX_3G_CID) {
+                            this.cid = -1;
+                    }
+
+                    if (psc <= LOW_BOUND || psc >= MAX_PSC) {
+                            this.psc = -1;
+                    }
                     break;
             }
         }

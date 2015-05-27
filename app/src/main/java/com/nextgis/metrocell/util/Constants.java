@@ -29,4 +29,7 @@ public interface Constants {
     String PREF_APP_VERSION = "app_version";
     String PREF_APP_FIRST_RUN = "is_first_run";
     String PREF_APP_SAVED_MAILS = "saved_mails";
+
+    String PREF_APP_USE_INVALID_LAC_CID = "use_invalid_lac_cid";
+    String PREF_APP_SAVE_LOGCAT = "save_logcat";
 }

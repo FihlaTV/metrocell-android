@@ -27,6 +27,9 @@
     <string name="action_settings">Настройки</string>
     <string name="settings_keep_screen_on">Не выключать экран</string>
     <string name="settings_keep_screen_on_sum">На карте экран всегда включен</string>
+    <string name="settings_invalid_neighbours">Искать LAC/CID с -1</string>
+    <string name="settings_save_search_log">Сохранять поиск в лог</string>
+    <string name="settings_save_search_log_sum">В /sdcard/Metrocell</string>
 
     <string name="first_run_title">Подготовка данных</string>
     <string name="first_run">Подготовка данных при первом запуске…</string>

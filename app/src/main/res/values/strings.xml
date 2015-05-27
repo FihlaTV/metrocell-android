@@ -27,6 +27,9 @@
     <string name="action_settings">Settings</string>
     <string name="settings_keep_screen_on">Keep screen on</string>
     <string name="settings_keep_screen_on_sum">Don\'t turn screen off at map</string>
+    <string name="settings_invalid_neighbours">Search through LAC/CID with -1</string>
+    <string name="settings_save_search_log">Save search log</string>
+    <string name="settings_save_search_log_sum">At /sdcard/Metrocell</string>
 
     <string name="first_run_title">Preparing data</string>
     <string name="first_run">Preparing application\'s data at first run…</string>

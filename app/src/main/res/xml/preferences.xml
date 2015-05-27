@@ -28,4 +28,15 @@
         android:summary="@string/settings_keep_screen_on_sum"
         android:title="@string/settings_keep_screen_on"/>
 
+    <CheckBoxPreference
+        android:defaultValue="true"
+        android:key="use_invalid_lac_cid"
+        android:title="@string/settings_invalid_neighbours"/>
+
+    <CheckBoxPreference
+        android:defaultValue="true"
+        android:key="save_logcat"
+        android:summary="@string/settings_save_search_log_sum"
+        android:title="@string/settings_save_search_log"/>
+
 </PreferenceScreen>

@@ -110,19 +110,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         loadInterface();
 
-        try {
-            File outputFile = new File(Environment.getExternalStorageDirectory(), "Metrocell");
+        if (mSharedPreferences.getBoolean(Constants.PREF_APP_SAVE_LOGCAT, true)) {
+            try {
+                File outputFile = new File(Environment.getExternalStorageDirectory(), "Metrocell");
 
-            if (outputFile.exists() || outputFile.mkdir()) {
-                outputFile = new File(outputFile, "log_" + System.currentTimeMillis() + ".txt");
-                Runtime.getRuntime().exec("logcat -c");
-                Runtime.getRuntime().exec("logcat -s -v time -f " + outputFile.getAbsolutePath() + " " + Constants.TAG);
+                if (outputFile.exists() || outputFile.mkdir()) {
+                    outputFile = new File(outputFile, "log_" + System.currentTimeMillis() + ".txt");
+                    Runtime.getRuntime().exec("logcat -c");
+                    Runtime.getRuntime().exec("logcat -s -v time -f " + outputFile.getAbsolutePath() + " " + Constants.TAG);
 
-                Intent intent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(outputFile));
-                sendBroadcast(intent);	// update media for MTP
+                    Intent intent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(outputFile));
+                    sendBroadcast(intent);    // update media for MTP
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-        } catch (IOException e) {
-            e.printStackTrace();
         }
 
     }
@@ -290,6 +292,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         protected Boolean doInBackground(Void... params) {
             Log.d(Constants.TAG, "==========new search==========");
             boolean invalid = false, result = false;
+            boolean useInvalid = mSharedPreferences.getBoolean(Constants.PREF_APP_USE_INVALID_LAC_CID, true);
             mCurrentCellLocationOverlay.setVisibility(false);
             mGeoPosition = new GeoLineString();
             mGeoPosition.setCRS(GeoConstants.CRS_WGS84);
@@ -306,7 +309,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             where = "\r\n";
 
             for (CellEngine.GSMInfo gsmInfo : gsmInfoArray) {
-                if (invalid)
+                if (invalid || (gsmInfo.getCid() == -1 && gsmInfo.getLac() == -1 && !useInvalid))
                     continue;
 
                 if (args.size() > 0)
