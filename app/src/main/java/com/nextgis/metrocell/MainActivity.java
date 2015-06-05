@@ -62,6 +62,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 
 
@@ -301,6 +302,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             ArrayList<ArrayList<CellEngine.GSMInfo>> gsmInfoArrayAcc = new ArrayList<>();
             CellEngine.GSMInfo activeCell = null;
 
+            Log.d(Constants.TAG, "start accumulation for " + Constants.ACCUMULATION_TIME + " sec");
             for (int i = 0; i < Constants.ACCUMULATION_TIME; i++) {
                 gsmInfoArrayAcc.add(mCellEngine.getGSMInfoArray());
 
@@ -311,7 +313,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
             }
 
-            Log.d(Constants.TAG, "start accumulation for " + Constants.ACCUMULATION_TIME + " sec");
             gsmInfoArray = new ArrayList<>();
             for (int i = 0; i < gsmInfoArrayAcc.get(gsmInfoArrayAcc.size() - 1).size(); i++) {
                 boolean persist = false;
@@ -393,6 +394,27 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                 data.close();
 
+                File resultFile = new File(Environment.getExternalStorageDirectory(), "Metrocell");
+                PrintWriter pw;
+                if (mSharedPreferences.getBoolean(Constants.PREF_APP_SAVE_RESULT, false)) {
+                    try {
+                        resultFile = new File(resultFile, "result");
+
+                        if (resultFile.exists() || resultFile.mkdirs()) {
+                            resultFile = new File(resultFile, "log_" + System.currentTimeMillis() + ".txt");
+                            pw = new PrintWriter(new FileOutputStream(resultFile, true));
+
+                            pw.println(Constants.RESULT_HEADER);
+                            pw.close();
+
+                            Intent intent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(resultFile));
+                            sendBroadcast(intent);    // update media for MTP
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+
                 for (MetroSegment segment : segmentsIds) {
                     selection = "select max(mins), min(maxs) from (select max(ration) as maxs, min(ration) as mins from " + SQLiteDBHelper.TABLE_POINTS;
                     where = String.format(" where %s = ? and %s = ? and (", SQLiteDBHelper.ROW_SEG_BEGIN, SQLiteDBHelper.ROW_SEG_END);
@@ -429,8 +451,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                         args.add(min);
                         args.add(max);
-                        selection = String.format("select %s, %s from %s%s and %s between ? and ?",
-                                SQLiteDBHelper.ROW_LATITUDE, SQLiteDBHelper.ROW_LONGITUDE, SQLiteDBHelper.TABLE_POINTS, where, SQLiteDBHelper.ROW_RATIO);
+                        selection = String.format("select %s, %s, %s, %s, %s from %s%s and %s between ? and ?",
+                                SQLiteDBHelper.ROW_LATITUDE, SQLiteDBHelper.ROW_LONGITUDE, SQLiteDBHelper.ROW_LAC, SQLiteDBHelper.ROW_CID,
+                                SQLiteDBHelper.ROW_POWER, SQLiteDBHelper.TABLE_POINTS, where, SQLiteDBHelper.ROW_RATIO);
                         item = db.rawQuery(selection, args.toArray(new String[args.size()]));
                         Log.d(Constants.TAG, "sql x/y query: " + substituteArgs(selection, args));
 
@@ -438,6 +461,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             do {
                                 mCurrentPoint = new GeoPoint(item.getDouble(0), item.getDouble(1));
                                 mGeoPosition.add(mCurrentPoint);
+
+                                if (mSharedPreferences.getBoolean(Constants.PREF_APP_SAVE_RESULT, false)) {
+                                    try {
+                                        pw = new PrintWriter(new FileOutputStream(resultFile, true));
+                                        pw.println(item.getString(2) + Constants.CSV_SEPARATOR + item.getString(3) + Constants.CSV_SEPARATOR
+                                                + item.getString(4) + Constants.CSV_SEPARATOR + item.getString(1) + Constants.CSV_SEPARATOR
+                                                + item.getString(0));
+                                        pw.close();
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
+                                }
                             } while (item.moveToNext());
 
                             result = true;
@@ -454,7 +489,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             // no intersections?, get active bts lat/lon only
             if (mGeoPosition.getPointCount() == 0) {
                 selection = SQLiteDBHelper.ROW_CID + " = ? and " + SQLiteDBHelper.ROW_LAC + " = ? and " + SQLiteDBHelper.ROW_POWER + " between ? and ?";
-                data = db.query(SQLiteDBHelper.TABLE_POINTS, new String[]{SQLiteDBHelper.ROW_LATITUDE, SQLiteDBHelper.ROW_LONGITUDE},
+                data = db.query(SQLiteDBHelper.TABLE_POINTS, new String[]{SQLiteDBHelper.ROW_LATITUDE, SQLiteDBHelper.ROW_LONGITUDE, SQLiteDBHelper.ROW_POWER},
                         selection, new String[]{activeCell.getCid() + "", activeCell.getLac() + "",
                                 activeCell.getMinPower() + "", activeCell.getMaxPower() + ""}, null, null, null);
 

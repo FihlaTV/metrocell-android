@@ -30,6 +30,8 @@
     <string name="settings_invalid_neighbours">Search through LAC/CID with -1</string>
     <string name="settings_save_search_log">Save search log</string>
     <string name="settings_save_search_log_sum">At /sdcard/Metrocell</string>
+    <string name="settings_save_search_result">Save search result</string>
+    <string name="settings_save_search_result_sum">At /sdcard/Metrocell/result</string>
 
     <string name="first_run_title">Preparing data</string>
     <string name="first_run">Preparing application\'s data at first run…</string>

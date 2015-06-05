@@ -29,10 +29,13 @@ public interface Constants {
     int ACCUMULATION_TIME = 5;
     int POWER_DELTA = 5;
 
+    String RESULT_HEADER = "lac" + CSV_SEPARATOR + "cid" + CSV_SEPARATOR + "power" + CSV_SEPARATOR + "lat" + CSV_SEPARATOR + "lon";
+
     String PREF_APP_VERSION = "app_version";
     String PREF_APP_FIRST_RUN = "is_first_run";
     String PREF_APP_SAVED_MAILS = "saved_mails";
 
     String PREF_APP_USE_INVALID_LAC_CID = "use_invalid_lac_cid";
     String PREF_APP_SAVE_LOGCAT = "save_logcat";
+    String PREF_APP_SAVE_RESULT = "save_result";
 }

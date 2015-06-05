@@ -34,9 +34,15 @@
         android:title="@string/settings_invalid_neighbours"/>
 
     <CheckBoxPreference
-        android:defaultValue="true"
+        android:defaultValue="false"
         android:key="save_logcat"
         android:summary="@string/settings_save_search_log_sum"
         android:title="@string/settings_save_search_log"/>
+
+    <CheckBoxPreference
+        android:defaultValue="false"
+        android:key="save_result"
+        android:summary="@string/settings_save_search_result_sum"
+        android:title="@string/settings_save_search_result"/>
 
 </PreferenceScreen>
