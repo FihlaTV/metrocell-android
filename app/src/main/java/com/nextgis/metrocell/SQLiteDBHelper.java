@@ -39,6 +39,7 @@ public class SQLiteDBHelper extends SQLiteOpenHelper {
     public final static String ROW_LAC = "lac";
     public final static String ROW_CID = "cid";
     public final static String ROW_PSC = "psc";
+    public final static String ROW_POWER = "power";
 
     public SQLiteDBHelper(Context context) {
         super(context, DB_NAME, null, DB_VERSION);

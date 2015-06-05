@@ -194,6 +194,7 @@ public class GISApplication extends Application implements IGISApplication {
             switch (savedVersionCode) {
                 case 0:
                 case 4:
+                case 5:
                     FileUtil.deleteRecursive(getDBPath());
                     break;
                 case 2:

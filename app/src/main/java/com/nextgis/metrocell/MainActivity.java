@@ -51,7 +51,7 @@ import com.melnykov.fab.FloatingActionButton;
 import com.nextgis.maplib.datasource.GeoLineString;
 import com.nextgis.maplib.datasource.GeoPoint;
 import com.nextgis.maplib.util.GeoConstants;
-import com.nextgis.maplibui.MapViewOverlays;
+import com.nextgis.maplibui.mapui.MapViewOverlays;
 import com.nextgis.maplibui.util.SettingsConstantsUI;
 import com.nextgis.metrocell.util.Constants;
 import com.nextgis.metrocell.util.ConstantsSecured;
@@ -297,8 +297,51 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mGeoPosition = new GeoLineString();
             mGeoPosition.setCRS(GeoConstants.CRS_WGS84);
 
-            ArrayList<CellEngine.GSMInfo> gsmInfoArray = mCellEngine.getGSMInfoArray();
+            ArrayList<CellEngine.GSMInfo> gsmInfoArray;
+            ArrayList<ArrayList<CellEngine.GSMInfo>> gsmInfoArrayAcc = new ArrayList<>();
             CellEngine.GSMInfo activeCell = null;
+
+            for (int i = 0; i < Constants.ACCUMULATION_TIME; i++) {
+                gsmInfoArrayAcc.add(mCellEngine.getGSMInfoArray());
+
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            Log.d(Constants.TAG, "start accumulation for " + Constants.ACCUMULATION_TIME + " sec");
+            gsmInfoArray = new ArrayList<>();
+            for (int i = 0; i < gsmInfoArrayAcc.get(gsmInfoArrayAcc.size() - 1).size(); i++) {
+                boolean persist = false;
+                int min = 1000, max = -1000;
+
+                for (int j = 0; j < gsmInfoArrayAcc.size() - 2; j++) {
+                    for (CellEngine.GSMInfo item : gsmInfoArrayAcc.get(j)) {
+                        if (gsmInfoArrayAcc.get(gsmInfoArrayAcc.size() - 1).get(i).equals(item)) {
+                            persist = true;
+
+                            if (max < item.getRssi())
+                                max = item.getRssi();
+
+                            if (min > item.getRssi())
+                                min = item.getRssi();
+                        }
+                    }
+                }
+
+                if (persist) {
+                    gsmInfoArrayAcc.get(gsmInfoArrayAcc.size() - 1).get(i).setMaxPower(max);
+                    gsmInfoArrayAcc.get(gsmInfoArrayAcc.size() - 1).get(i).setMinPower(min);
+                    gsmInfoArray.add(gsmInfoArrayAcc.get(gsmInfoArrayAcc.size() - 1).get(i));
+                }
+            }
+
+            if (gsmInfoArray.isEmpty()) {
+                gsmInfoArray = mCellEngine.getGSMInfoArray();
+                Log.d(Constants.TAG, "no mutual bts during accumulation");
+            }
 
             SQLiteDatabase db = SQLiteDatabase.openDatabase(((GISApplication) getApplication()).getDBPath().getPath(), null, 0);
             ArrayList<String> args = new ArrayList<>();
@@ -332,9 +375,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             mSharedPreferences.edit().putString(Constants.PREF_APP_SAVED_MAILS, where).commit();
 
-            if (activeCell == null || activeCell.getLac() == -1 || activeCell.getCid() == -1 ||
-                    activeCell.getLac() == 2147483647 || activeCell.getCid() == 2147483647)
+            if (activeCell == null || activeCell.getLac() == -1 || activeCell.getCid() == -1) {
+                Log.d(Constants.TAG, "return false: no active bts or lac/cid = -1");
                 return false;
+            }
 
             Cursor item, data = db.rawQuery(selection, args.toArray(new String[args.size()]));
             Log.d(Constants.TAG, "sql intersections query: " + substituteArgs(selection, args));
@@ -352,7 +396,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 for (MetroSegment segment : segmentsIds) {
                     selection = "select max(mins), min(maxs) from (select max(ration) as maxs, min(ration) as mins from " + SQLiteDBHelper.TABLE_POINTS;
                     where = String.format(" where %s = ? and %s = ? and (", SQLiteDBHelper.ROW_SEG_BEGIN, SQLiteDBHelper.ROW_SEG_END);
-                    payload = String.format("(%s = ? and %s = ?)", SQLiteDBHelper.ROW_LAC, SQLiteDBHelper.ROW_CID);
+                    payload = String.format("(%s = ? and %s = ? and %s between ? and ?)", SQLiteDBHelper.ROW_LAC, SQLiteDBHelper.ROW_CID, SQLiteDBHelper.ROW_POWER);
                     args.clear();
                     args.add(segment.getBeginSeg() + "");
                     args.add(segment.getEndSeg() + "");
@@ -364,6 +408,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         where += payload;
                         args.add(gsmInfo.getLac() + "");
                         args.add(gsmInfo.getCid() + "");
+                        args.add(gsmInfo.getMinPower() - Constants.POWER_DELTA + "");
+                        args.add(gsmInfo.getMaxPower() + Constants.POWER_DELTA + "");
                     }
 
                     where += ")";
@@ -372,12 +418,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     data = db.rawQuery(selection, args.toArray(new String[args.size()]));
 
                     if (data.moveToFirst()) {
-                        Log.d(Constants.TAG, "segment " + segment.getBeginSeg() + "-" + segment.getEndSeg() +
-                                " min: " + data.getString(0) + " max: " + data.getString(1));
+                        String min = data.getString(0), max = data.getString(1);
+                        Log.d(Constants.TAG, "segment " + segment.getBeginSeg() + "-" + segment.getEndSeg() + " min: " + min + " max: " + max);
                         Log.d(Constants.TAG, "sql min/max query: " + substituteArgs(selection, args));
 
-                        args.add(data.getString(0));
-                        args.add(data.getString(1));
+                        if (min == null || max == null) {
+                            Log.d(Constants.TAG, "not found rows with given power");
+                            return false;
+                        }
+
+                        args.add(min);
+                        args.add(max);
                         selection = String.format("select %s, %s from %s%s and %s between ? and ?",
                                 SQLiteDBHelper.ROW_LATITUDE, SQLiteDBHelper.ROW_LONGITUDE, SQLiteDBHelper.TABLE_POINTS, where, SQLiteDBHelper.ROW_RATIO);
                         item = db.rawQuery(selection, args.toArray(new String[args.size()]));
@@ -400,11 +451,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             } else
                 Log.d(Constants.TAG, "no bts intersections");
 
+            // no intersections?, get active bts lat/lon only
             if (mGeoPosition.getPointCount() == 0) {
-                selection = SQLiteDBHelper.ROW_CID + " = ? and " + SQLiteDBHelper.ROW_LAC + " = ?";
-                // and " + SQLiteDBHelper.ROW_RATIO + " between 0.1 and 0.9";
+                selection = SQLiteDBHelper.ROW_CID + " = ? and " + SQLiteDBHelper.ROW_LAC + " = ? and " + SQLiteDBHelper.ROW_POWER + " between ? and ?";
                 data = db.query(SQLiteDBHelper.TABLE_POINTS, new String[]{SQLiteDBHelper.ROW_LATITUDE, SQLiteDBHelper.ROW_LONGITUDE},
-                        selection, new String[]{activeCell.getCid() + "", activeCell.getLac() + ""}, null, null, null);
+                        selection, new String[]{activeCell.getCid() + "", activeCell.getLac() + "",
+                                activeCell.getMinPower() + "", activeCell.getMaxPower() + ""}, null, null, null);
 
                 if (data.moveToFirst()) {
                     Log.d(Constants.TAG, "found active bts only lac: " + activeCell.getLac() + " cid: " + activeCell.getCid());

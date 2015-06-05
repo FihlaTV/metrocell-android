@@ -26,6 +26,9 @@ public interface Constants {
     String CSV_SEPARATOR = ";";
     int UNDEFINED = -1;
 
+    int ACCUMULATION_TIME = 5;
+    int POWER_DELTA = 5;
+
     String PREF_APP_VERSION = "app_version";
     String PREF_APP_FIRST_RUN = "is_first_run";
     String PREF_APP_SAVED_MAILS = "saved_mails";

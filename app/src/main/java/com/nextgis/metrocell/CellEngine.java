@@ -384,6 +384,7 @@ public class CellEngine {
         private int psc;
         private int networkType;
         private int rssi;
+        private int minPower, maxPower;
 
         public GSMInfo(long timeStamp) {
             this.timeStamp = timeStamp;
@@ -404,7 +405,7 @@ public class CellEngine {
             this.lac = lac;
             this.cid = cid;
             this.psc = psc;
-            this.rssi = rssi;
+            this.rssi = minPower = maxPower = rssi;
 
             boolean outOfBounds = mcc <= LOW_BOUND || mcc >= MAX_MCC_MNC;
             this.mcc = outOfBounds ? Constants.UNDEFINED : mcc;
@@ -480,6 +481,26 @@ public class CellEngine {
 
         public int getRssi() {
             return rssi;
+        }
+
+        public int getMinPower() {
+            return minPower;
+        }
+
+        public int getMaxPower() {
+            return maxPower;
+        }
+
+        public void setMinPower(int minPower) {
+            this.minPower = minPower;
+        }
+
+        public void setMaxPower(int maxPower) {
+            this.maxPower = maxPower;
+        }
+
+        public boolean equals(GSMInfo item) {
+            return item.getCid() == cid && item.getLac() == lac;
         }
     }
 }
