@@ -4,7 +4,7 @@ Experiment
 
 License
 -------------
-This program is licensed under GNU GPL v2 or any later version
+This program is licensed under GNU GPL v3 or any later version
 
 Commercial support
 ----------
